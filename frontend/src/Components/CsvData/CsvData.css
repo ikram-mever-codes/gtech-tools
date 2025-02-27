@@ -1,0 +1,129 @@
+.csv-data-container {
+  width: 50%;
+  height: max-content;
+  min-height: 60vh;
+  background-color: white;
+  box-shadow: 0px 0px 5px black;
+  border-radius: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.csv-table {
+  width: 100%;
+  height: 60vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.csv-upload-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.csv-upload {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 80%;
+  height: 5rem;
+  background-color: #8ec11b;
+  color: white;
+  gap: 20px;
+  border-radius: 5px;
+  transition: 300ms ease-in-out;
+  cursor: pointer;
+  position: relative;
+}
+
+.csv-upload h3 {
+  font-size: 20px;
+}
+
+.csv-upload:hover {
+  background-color: #78a50f;
+}
+
+.csv-upload-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  cursor: pointer;
+}
+
+.csv-upload {
+  text-align: center;
+}
+
+.csv-data-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.csv-modifications {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.column-modification {
+  width: 33%;
+  background-color: #8ec11b;
+  padding: 3px 10px;
+}
+
+.csv-table {
+  overflow-x: auto;
+}
+
+.csv-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.csv-table th,
+.csv-table td {
+  border: 1px solid #ddd;
+  padding: 13px;
+}
+
+.csv-table th {
+  border-top: none;
+}
+
+.db-data-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+}
+
+.mod-btn {
+  border: none;
+  outline: none;
+  padding: 5px 15px;
+  margin: 4px;
+  border-radius: 5px;
+  background-color: #0758c9;
+  color: white;
+  cursor: pointer;
+  transition: 300ms ease-in-out;
+  transform: scale(1);
+}
+
+.mod-btn:hover {
+  transform: scale(1.1);
+  background-color: #0a4ca9;
+}

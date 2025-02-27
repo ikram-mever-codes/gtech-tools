@@ -1,0 +1,68 @@
+.home-container {
+    width: 100%;
+    min-height: 80vh;
+    height: max-content;
+    padding: 20px;
+}
+
+.home-head {
+    font-size: 30px;
+    color: #525252;
+    font-weight: 700;
+    text-align: center;
+    margin: 20px 0px;
+    margin-bottom: 0px;
+}
+
+.home-box {
+    width: 100%;
+    height: max-content;
+    min-height: 60vh;
+    height: max-content;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+
+}
+
+.attribute-selection {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: row-reverse;
+    margin: 10px 0px;
+    gap: 10px;
+}
+
+.attribute-selection button {
+    border: none;
+    outline: none;
+    background-color: #8CC219;
+    color: white;
+    width: 15rem;
+    height: max-content;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 5px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: 300ms ease-in-out;
+}
+
+
+.attribute-selection button:hover {
+    background-color: #709c12;
+}
+
+/* 
+// Design A Basic Login Page
+
+// Fix the Error in the find and Replace Feature
+
+// Have a final overview of the code and do some modifications to beautify 
+// Add some validation while loading content such removing empty spaces and extra things etc
+*/

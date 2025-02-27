@@ -1,0 +1,87 @@
+.db-data-container {
+    width: 50%;
+    height: 60vh;
+    background-color: white;
+    box-shadow: 0px 0px 5px black;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.db-upload-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 80%;
+    gap: 10px;
+    position: relative;
+}
+
+.db-upload-box input {
+    width: 100%;
+    height: 4rem;
+    border: none;
+    outline: none;
+    background-color: white;
+    border: 2px solid grey;
+    color: grey;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 20px;
+}
+
+.db-upload-box button {
+    width: 100%;
+    height: 4rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    outline: none;
+    background-color: #8FC119;
+    color: white;
+    font-size: 25px;
+    gap: 20px;
+    cursor: pointer;
+    transition: 300ms ease-in-out;
+    border-radius: 5px;
+}
+
+.db-upload-box button:hover {
+    background-color: #78a50f;
+}
+
+.autocompelte-search {
+    width: 100%;
+
+}
+
+.autocompelte-box {
+    position: absolute;
+    width: 100%;
+    background-color: #525252;
+    color: black;
+    border-radius: 5px;
+    padding: 5px 20px;
+    z-index: 1000;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0px;
+    flex-direction: column;
+}
+
+
+.autocompelte-result {
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    width: 100%;
+    color: white;
+    font-size: 18px;
+    padding: 5px 20px;
+    border-bottom: 1px solid darkgray;
+}

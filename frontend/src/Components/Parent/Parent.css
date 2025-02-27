@@ -1,0 +1,79 @@
+.parent-container {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  max-width: 700px;
+  height: 60vh;
+  padding: 1px 40px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin: 20px auto;
+  font-family: "Poppins", sans-serif;
+}
+
+.parent-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.parent-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+/* Value style */
+.parent-value {
+  font-size: 16px;
+  color: #555;
+}
+
+/* Active/Not Active button row */
+.parent-status {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* Status button styling */
+.status-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out;
+  color: white;
+}
+
+/* Active status (green button) */
+.status-btn.active {
+  background-color: #8ec11b;
+  box-shadow: 0 4px 8px rgba(142, 193, 27, 0.3);
+}
+
+/* Not active status (red button) */
+.status-btn.not-active {
+  background-color: #e74c3c;
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+/* Responsive adjustments for mobile devices */
+@media (max-width: 768px) {
+  .parent-container {
+    padding: 15px;
+  }
+
+  .parent-label,
+  .parent-value {
+    font-size: 14px;
+  }
+
+  .status-btn {
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+}

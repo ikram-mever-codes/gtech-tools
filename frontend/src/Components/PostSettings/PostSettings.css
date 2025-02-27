@@ -1,0 +1,177 @@
+.post-settings-container {
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 12px;
+}
+
+.post-settings-title {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #333;
+  font-weight: 600;
+}
+
+.loading-message {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 16px;
+  color: #666;
+}
+.constant-table-wrapper {
+  width: 100%;
+  height: 40vh;
+  overflow-y: scroll;
+  border-radius: 10px;
+}
+.constants-table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  overflow: scroll;
+  background-color: #f8f9fa;
+}
+
+.constants-table th,
+.constants-table td {
+  border: 1px solid #ddd;
+  padding: 15px 18px;
+  text-align: left;
+  font-size: 15px;
+  color: #444;
+  border-bottom: 1px solid #ececec;
+}
+
+.constants-table th {
+  background-color: #007bff;
+  color: #ffffff;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.constants-table tbody tr:nth-child(even) td {
+  background-color: #f7f9fc;
+}
+
+.constants-table tbody tr:hover td {
+  transition: background-color 0.2s ease;
+}
+
+.constants-table .alt-message {
+  text-align: center;
+  font-style: italic;
+  color: #777;
+  padding: 12px;
+}
+
+.add-new-button {
+  display: block;
+  margin: 0 auto;
+  padding: 12px 24px;
+  background-color: #8ec11b;
+  color: #ffffff;
+  border: 1px solid #8ec11b;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: background-color 0.3s ease, box-shadow 0.3s;
+}
+
+.add-new-button:hover {
+  background-color: #739b15;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.constant-create input {
+  width: calc(50% - 20px);
+  padding: 12px;
+  margin: 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.post-settings-button {
+  padding: 12px 18px;
+  margin: 5px;
+  background-color: #007bff;
+  border: 1px solid #007bff;
+  color: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color 0.3s ease, box-shadow 0.3s;
+}
+
+.post-settings-button[disabled] {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.Toastify__toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  width: 350px;
+}
+
+.Toastify__toast {
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  margin-bottom: 10px;
+  font-family: "Arial", sans-serif;
+  font-size: 15px;
+  color: #ffffff;
+}
+
+.Toastify__toast--success {
+  background-color: #28a745;
+}
+
+.Toastify__toast--error {
+  background-color: #dc3545;
+}
+
+.Toastify__toast--info {
+  background-color: #17a2b8;
+}
+
+.Toastify__toast--warning {
+  background-color: #ffc107;
+}
+
+.Toastify__close-button {
+  color: #ffffff;
+  opacity: 0.8;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1;
+}
+
+.Toastify__progress-bar {
+  background: #ffffff66;
+}
+
+.post-settings-input {
+  width: 100%;
+  height: 3rem;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  outline: none;
+  box-shadow: inset 0px 2px 6px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.3s ease, box-shadow 0.3s;
+}
+
+.post-settings-input:focus {
+  border-color: #007bff;
+  box-shadow: 0px 0px 5px rgba(0, 123, 255, 0.5);
+}
