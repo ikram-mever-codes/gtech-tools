@@ -23,6 +23,8 @@ const corsOptions = {
     "https://item.taobao.com",
     "https://gtech-tools.com",
     "https://linkcnc.world.taobao.com",
+    "https://gtech-tools.com",
+    "http://localhost:5173",
   ],
   credentials: true,
   "Access-Control-Allow-Origin": "https://gtech-tools.com",
