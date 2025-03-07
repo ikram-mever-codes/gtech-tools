@@ -2,8 +2,6 @@
 .common-table-wrapper {
   height: max-content;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: auto;
   border-radius: 5px;
 }
 

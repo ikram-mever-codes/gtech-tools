@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import "./Operations.css";
 import axios from "axios";
 import { BASE_URL } from "../../assets/constants";
-
-const Operations = ({ products, setProducts }) => {
+const Operations = ({ products, setProducts, missingCombinations }) => {
   const [expressions, setExpressions] = useState({
     weight: "",
     height: "",
@@ -13,7 +12,6 @@ const Operations = ({ products, setProducts }) => {
   const [constants, setConstants] = useState([]);
   const [filteredConstants, setFilteredConstants] = useState([]);
   const [activeIndex, setActiveIndex] = useState(-1);
-
   useEffect(() => {
     const fetchConstants = async () => {
       try {
@@ -65,10 +63,8 @@ const Operations = ({ products, setProducts }) => {
       let currentValue = parseFloat(product.titemData[key]);
       if (isNaN(currentValue)) return currentValue;
 
-      // Replace 'x' with the current value
       let modifiedExpression = expression.replace(/x/g, currentValue);
 
-      // Extract attribute values from the product's variationValuesData
       const attr1 = product.variationValuesData.value_de;
       const attr2 = product.variationValuesData.value_de_2;
       const attr3 = product.variationValuesData.value_de_3;
@@ -123,6 +119,7 @@ const Operations = ({ products, setProducts }) => {
       return part; // Return as is if not a constant
     });
   };
+  console.log(products);
 
   return (
     <div className="operations-container">

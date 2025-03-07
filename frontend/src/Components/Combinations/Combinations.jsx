@@ -145,6 +145,7 @@ const Combinations = ({
             width: "100%",
             height: "60vh",
             display: "flex",
+            overflow: "auto",
             justifyContent: "center",
             alignItems: "center",
           }}
@@ -157,7 +158,7 @@ const Combinations = ({
             <MdOutlinePostAdd style={{ fontSize: "20px" }} />
             Post All
           </button>
-          <div className="combinations-table-wrapper">
+          <div className="combinations-table-wrapper h-[59vh] overflow-auto">
             <table className="combinations-table">
               <thead>
                 <tr>

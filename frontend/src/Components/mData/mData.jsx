@@ -20,7 +20,7 @@ const MData = ({
   commonData,
   setCommonData,
 }) => {
-  const [tab, setTab] = useState("commonData");
+  const [tab, setTab] = useState("combinations");
   const [products, setProducts] = useState([]);
 
   return (
@@ -85,6 +85,7 @@ const MData = ({
               products={products}
               setProducts={setProducts}
               setShowMData={setShowMData}
+              tab={tab}
               setMissingCombinations={setMissingCombinations}
               setParentData={setParentData}
               setCsvData={setCsvData}
@@ -100,6 +101,7 @@ const MData = ({
               parentData={parentData}
               products={products}
               setProducts={setProducts}
+              missingCombinations={missingCombinations}
             />
           )}
         </div>

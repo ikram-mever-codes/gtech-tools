@@ -33,11 +33,6 @@ const Product = sequelize.define(
       type: DataTypes.STRING(2048),
       allowNull: false,
     },
-    linkHash: {
-      type: DataTypes.STRING(64),
-      allowNull: false,
-      unique: true,
-    },
     isAssociated: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,

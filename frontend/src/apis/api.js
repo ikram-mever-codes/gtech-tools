@@ -1,10 +1,11 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 import { errorStyles } from "../libs/constants";
+import { BASE_URL } from "../assets/constants";
 
-// Create an Axios instance
+// Create an Axioss instance
 const api = axios.create({
-  baseURL: "https://api.gtech-tools.com/api/v1",
+  baseURL: `${BASE_URL}/api/v1`,
   timeout: 100000,
   headers: {
     "Content-Type": "application/json",
