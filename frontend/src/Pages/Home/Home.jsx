@@ -41,7 +41,11 @@ const Home = () => {
         Attributes3: combination.attribute3 || "",
         Attributes4: combination.attribute4 || "",
         Attributes5: combination.attribute5 || "",
-        ProductId: product._id || "", // Added to track source product
+        ProductId: product._id || "",
+        weight: product.weight,
+        height: product.height,
+        length: product.length,
+        width: product.width,
       }));
     } catch (error) {
       console.error("Error transforming product to CSV:", error);

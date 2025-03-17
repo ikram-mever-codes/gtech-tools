@@ -22,7 +22,7 @@ const MData = ({
 }) => {
   const [tab, setTab] = useState("combinations");
   const [products, setProducts] = useState([]);
-
+  console.log(missingCombinations);
   return (
     <div className="mdata-container">
       <div className="mdata-modal">

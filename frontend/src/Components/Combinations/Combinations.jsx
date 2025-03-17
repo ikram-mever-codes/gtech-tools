@@ -6,8 +6,10 @@ import { toast } from "react-toastify";
 import { BASE_URL } from "../../assets/constants";
 
 const generateRandomEAN12 = () => {
-  let ean12 = "";
-  for (let i = 0; i < 12; i++) {
+  // Force first three digits to "623"
+  let ean12 = "623";
+  // Generate the remaining 9 digits
+  for (let i = 0; i < 9; i++) {
     ean12 += Math.floor(Math.random() * 10);
   }
   return ean12;
@@ -45,10 +47,10 @@ const generateProductWithUniqueEAN = async (ms, parent, parentData) => {
       ean: uniqueEAN,
       tariff_code: parent[0].tariff_code,
       taric_id: parent[0].taric_id,
-      weight: 0,
-      width: 0,
-      height: 0,
-      length: 0,
+      weight: ms.weight,
+      width: ms.width,
+      height: ms.height,
+      length: ms.length,
       item_name_cn: parentData.parent_name_cn,
       item_name_de: parentData.parent_name_de,
       item_name: parentData.parent_name_en,
@@ -78,6 +80,8 @@ const Combinations = ({
   setDbData,
   setCsvData,
 }) => {
+  const [eanGenerated, setEanGenerated] = useState(false);
+
   async function handlePostAll() {
     if (products.some((product) => product.titemData.weight === 0)) {
       alert("Weight of one or more items is 0");
@@ -88,7 +92,7 @@ const Combinations = ({
     try {
       let res = await axios.post(
         `${BASE_URL}/products/add`,
-        { products },
+        { products, parent_name: parentData.parent_name_en },
         {
           headers: {
             "Content-Type": "application/json",
@@ -113,6 +117,7 @@ const Combinations = ({
     }
   }
 
+  // Only generate EANs/products one time, on first render
   useEffect(() => {
     const generateProducts = async () => {
       if (missingCombinations.length) {
@@ -132,10 +137,14 @@ const Combinations = ({
           return [...prevProducts, ...filteredNewProducts];
         });
       }
+      // Mark EAN generation as done
+      setEanGenerated(true);
     };
 
-    generateProducts();
-  }, [missingCombinations, parent, setProducts]);
+    if (!eanGenerated) {
+      generateProducts();
+    }
+  }, [eanGenerated, missingCombinations, parent, parentData, setProducts]);
 
   return (
     <>

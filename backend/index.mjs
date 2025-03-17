@@ -225,13 +225,14 @@ app.put("/data/update", async (req, res) => {
 });
 
 app.post("/products/add", async (req, res) => {
-  const { products } = req.body;
+  const { products, parent_name } = req.body;
 
   if (!Array.isArray(products) || products.length === 0) {
     return res.status(400).json({ message: "No products provided" });
   }
 
   try {
+    // Fetch used EANs
     const usedEansQuery = `SELECT ean FROM eans WHERE is_used = 'Y'`;
     const usedEansResult = await new Promise((resolve, reject) => {
       db.query(usedEansQuery, (err, result) => {
@@ -262,11 +263,45 @@ app.post("/products/add", async (req, res) => {
           .json({ message: `EAN ${titemData.ean} is already in use` });
       }
 
-      const titemsQuery = `INSERT INTO titems (parent_id, itemID_DE, parent_no_de, supp_cat, ean, tariff_code, taric_id, weight, width, height, length, item_name_cn, item_name, RMB_Price, is_new, is_npr, npr_remark, ISBN, many_components, effort_rating) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      // Check if EAN already exists before inserting
+      const checkEANQuery = `SELECT COUNT(*) AS count FROM titems WHERE ean = ?`;
+      const existingEAN = await new Promise((resolve, reject) => {
+        db.query(checkEANQuery, [titemData.ean], (err, result) => {
+          if (err) {
+            console.error("Error checking existing EAN:", err);
+            return reject({ message: "Failed to check EAN before insert" });
+          }
+          resolve(result[0].count);
+        });
+      });
+
+      if (existingEAN > 0) {
+        return res.status(400).json({
+          message: `EAN ${titemData.ean} already exists in the database`,
+        });
+      }
+
+      const titemsQuery = `
+      INSERT INTO titems (parent_id, itemID_DE, parent_no_de, supp_cat, ean, tariff_code, taric_id, weight, width, height, length, item_name_cn, item_name, RMB_Price, is_new, is_npr, npr_remark, ISBN, many_components, effort_rating, cat_id, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      ON DUPLICATE KEY UPDATE item_name = VALUES(item_name), RMB_Price = VALUES(RMB_Price)
+    `;
+
+      const attributesPart = [
+        variationValuesData.value_de,
+        variationValuesData.value_de_2,
+        variationValuesData.value_de_3,
+      ]
+        .filter(Boolean)
+        .join("-");
+
+      const itemName = attributesPart
+        ? `${parent_name}  ${attributesPart}`
+        : titemData.item_name;
 
       const titemsValues = [
         titemData.parent_id,
-        titemData.itemID_DE,
+        titemData.ean,
         titemData.parent_no_de,
         titemData.supp_cat,
         titemData.ean,
@@ -276,26 +311,8 @@ app.post("/products/add", async (req, res) => {
         titemData.width,
         titemData.height,
         titemData.length,
-        `${titemData.item_name_cn || "CN"} ${
-          variationValuesData.value_de || ""
-        }${
-          variationValuesData.value_de_2
-            ? "-" + variationValuesData.value_de_2
-            : ""
-        }${
-          variationValuesData.value_de_3
-            ? "-" + variationValuesData.value_de_3
-            : ""
-        }`,
-        `${titemData.item_name || "EN"} ${variationValuesData.value_de || ""}${
-          variationValuesData.value_de_2
-            ? "-" + variationValuesData.value_de_2
-            : ""
-        }${
-          variationValuesData.value_de_3
-            ? "-" + variationValuesData.value_de_3
-            : ""
-        }`,
+        itemName,
+        itemName,
         titemData.RMB_Price,
         "Y",
         "Y",
@@ -303,25 +320,28 @@ app.post("/products/add", async (req, res) => {
         1,
         1,
         3,
+        1,
       ];
 
       let insertedItemId;
       await new Promise((resolve, reject) => {
         db.query(titemsQuery, titemsValues, (err, titemsResult) => {
           if (err) {
-            console.error("Error inserting titem:", err);
+            console.error("Error inserting/updating titem:", err);
             return reject({
-              message: `Failed to add item ${titemData.item_name}`,
+              message: `Failed to add/update item ${titemData.item_name}`,
             });
           }
-          insertedItemId = titemsResult.insertId;
+          insertedItemId = titemsResult.insertId || existingEAN;
           resolve(titemsResult);
         });
       });
 
+      // Insert into supplier_items table
       if (!supplierItemData || !supplierItemData.supplier_id) {
         return res.status(400).json({ message: "Missing supplier item data" });
       }
+
       const supplierQuery = `INSERT INTO supplier_items (item_id, supplier_id, url, price_rmb) VALUES (?, ?, ?, ?)`;
       const supplierValues = [
         insertedItemId,
@@ -329,6 +349,7 @@ app.post("/products/add", async (req, res) => {
         supplierItemData.url,
         supplierItemData.price_rmb,
       ];
+
       await new Promise((resolve, reject) => {
         db.query(supplierQuery, supplierValues, (err, supplierResult) => {
           if (err) {
@@ -341,12 +362,15 @@ app.post("/products/add", async (req, res) => {
         });
       });
 
+      // Insert into variation_values table
       if (!variationValuesData || !variationValuesData.item_id_de) {
         return res
           .status(400)
           .json({ message: "Missing variation values data" });
       }
+
       const variationQuery = `INSERT INTO variation_values (item_id, item_id_de, item_no_de, value_de, value_de_2, value_de_3, value_en, value_en_2, value_en_3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
       const variationValues = [
         insertedItemId,
         variationValuesData.item_id_de,
@@ -358,6 +382,7 @@ app.post("/products/add", async (req, res) => {
         variationValuesData.value_en_2,
         variationValuesData.value_en_3,
       ];
+
       await new Promise((resolve, reject) => {
         db.query(variationQuery, variationValues, (err, variationResult) => {
           if (err) {
@@ -370,38 +395,26 @@ app.post("/products/add", async (req, res) => {
         });
       });
 
-      const warehouseQuery = `INSERT INTO warehouse_items (item_id, ItemID_DE, ean, item_no_de, item_name_de, item_name_en, is_no_auto_order, is_active, price_eur, msq, buffer, is_stock_item, is_SnSI, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+      // Insert into warehouse_items table
+      const warehouseQuery = `
+          INSERT INTO warehouse_items (item_id, ItemID_DE, ean, item_no_de, item_name_de, item_name_en, is_no_auto_order, is_active, msq, buffer, is_stock_item, is_SnSI, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+
       const warehouseValues = [
         insertedItemId,
-        titemData.itemID_DE,
         titemData.ean,
-        variationValuesData.item_no_de,
-        `${titemData.item_name_de} ${variationValuesData.value_de || ""}${
-          variationValuesData.value_de_2
-            ? "-" + variationValuesData.value_de_2
-            : ""
-        }${
-          variationValuesData.value_de_3
-            ? "-" + variationValuesData.value_de_3
-            : ""
-        }`,
-        `${titemData.item_name} ${variationValuesData.value_de || ""}${
-          variationValuesData.value_de_2
-            ? "-" + variationValuesData.value_de_2
-            : ""
-        }${
-          variationValuesData.value_de_3
-            ? "-" + variationValuesData.value_de_3
-            : ""
-        }`,
+        titemData.ean,
+        variationValuesData.ean,
+        itemName,
+        itemName,
         "N",
         "Y",
-        0.0,
-        0.0,
+        0,
         0,
         "Y",
         "Y",
       ];
+
       await new Promise((resolve, reject) => {
         db.query(warehouseQuery, warehouseValues, (err, warehouseResult) => {
           if (err) {
@@ -414,6 +427,7 @@ app.post("/products/add", async (req, res) => {
         });
       });
 
+      // Update eans table
       const updateEanQuery = `UPDATE eans SET is_used = 'Y', updated_at = NOW() WHERE ean = ?`;
       await new Promise((resolve, reject) => {
         db.query(updateEanQuery, [titemData.ean], (err, updateResult) => {

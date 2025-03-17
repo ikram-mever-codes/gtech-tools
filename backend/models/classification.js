@@ -7,8 +7,8 @@ const Classification = sequelize.define(
   {
     name: {
       type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
+      allowNull: true,
+      unique: false,
       validate: {
         notEmpty: true,
       },
@@ -33,7 +33,7 @@ const SubClass = sequelize.define(
   {
     name: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       validate: {
         notEmpty: true,
       },

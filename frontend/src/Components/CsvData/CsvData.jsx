@@ -67,6 +67,10 @@ const CsvData = ({
               "Attributes4",
               "URL",
               "price",
+              "weight",
+              "height",
+              "width",
+              "length",
             ];
 
             const parsedHeaders = headersFromCSV
@@ -93,6 +97,10 @@ const CsvData = ({
               Attributes3: row["Attributes3"] || "",
               URL: row["URL"] || "",
               price: row["price"] || "",
+              weight: row["weight"] || 10,
+              height: row["height"] || 10,
+              width: row["width"] || 10,
+              length: row["length"] || 10,
             }));
 
             const initialModifications = combinedHeaders.reduce(
