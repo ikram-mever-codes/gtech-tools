@@ -102,7 +102,6 @@ app.get("/data/:name", (req, res) => {
       if (err) {
         return res.status(500).json({ message: err.message });
       }
-
       if (parentResults.length === 0) {
         return res
           .status(404)
@@ -223,9 +222,8 @@ app.put("/data/update", async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 });
-
 app.post("/products/add", async (req, res) => {
-  const { products, parent_name } = req.body;
+  const { products, parent_name, parent_name_de, parent_name_cn } = req.body;
 
   if (!Array.isArray(products) || products.length === 0) {
     return res.status(400).json({ message: "No products provided" });
@@ -245,6 +243,33 @@ app.post("/products/add", async (req, res) => {
     });
     const usedEans = usedEansResult.map((row) => row.ean);
 
+    // Insert EANs into the eans table before processing products
+    for (let product of products) {
+      const { titemData } = product;
+
+      if (!titemData || !titemData.ean) {
+        return res.status(400).json({ message: "Missing EAN in product data" });
+      }
+
+      if (usedEans.includes(titemData.ean)) {
+        return res
+          .status(400)
+          .json({ message: `EAN ${titemData.ean} is already in use` });
+      }
+
+      const insertEanQuery = `INSERT INTO eans (ean, is_used,  updated_at) VALUES (?, 'N',  NOW())`;
+      await new Promise((resolve, reject) => {
+        db.query(insertEanQuery, [titemData.ean], (err, result) => {
+          if (err) {
+            console.error("Error inserting EAN:", err);
+            return reject({ message: `Failed to insert EAN ${titemData.ean}` });
+          }
+          resolve(result);
+        });
+      });
+    }
+
+    // Process products
     for (let product of products) {
       const { supplierItemData, titemData, variationValuesData } = product;
 
@@ -257,13 +282,6 @@ app.post("/products/add", async (req, res) => {
         return res.status(400).json({ message: "Missing titem data" });
       }
 
-      if (usedEans.includes(titemData.ean)) {
-        return res
-          .status(400)
-          .json({ message: `EAN ${titemData.ean} is already in use` });
-      }
-
-      // Check if EAN already exists before inserting
       const checkEANQuery = `SELECT COUNT(*) AS count FROM titems WHERE ean = ?`;
       const existingEAN = await new Promise((resolve, reject) => {
         db.query(checkEANQuery, [titemData.ean], (err, result) => {
@@ -295,9 +313,11 @@ app.post("/products/add", async (req, res) => {
         .filter(Boolean)
         .join("-");
 
-      const itemName = attributesPart
-        ? `${parent_name}  ${attributesPart}`
-        : titemData.item_name;
+      const itemNameEn = `${parent_name} ${attributesPart}`;
+      const itemNameDe = `${parent_name_de} ${attributesPart}`;
+      const itemNameCn = `${
+        parent_name_cn ? parent_name_cn : parent_name
+      } ${attributesPart}`;
 
       const titemsValues = [
         titemData.parent_id,
@@ -311,8 +331,8 @@ app.post("/products/add", async (req, res) => {
         titemData.width,
         titemData.height,
         titemData.length,
-        itemName,
-        itemName,
+        itemNameCn,
+        itemNameEn,
         titemData.RMB_Price,
         "Y",
         "Y",
@@ -404,9 +424,9 @@ app.post("/products/add", async (req, res) => {
         insertedItemId,
         titemData.ean,
         titemData.ean,
-        variationValuesData.ean,
-        itemName,
-        itemName,
+        titemData.ean,
+        itemNameDe,
+        itemNameEn,
         "N",
         "Y",
         0,

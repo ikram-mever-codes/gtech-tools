@@ -92,7 +92,12 @@ const Combinations = ({
     try {
       let res = await axios.post(
         `${BASE_URL}/products/add`,
-        { products, parent_name: parentData.parent_name_en },
+        {
+          products,
+          parent_name: parentData.parent_name_en,
+          parent_name_de: parentData.parent_name_de,
+          parent_name_cn: parentData.name_cn,
+        },
         {
           headers: {
             "Content-Type": "application/json",
@@ -116,7 +121,7 @@ const Combinations = ({
       toast.error(error.response?.data?.message || error.message);
     }
   }
-
+  console.log(parentData);
   // Only generate EANs/products one time, on first render
   useEffect(() => {
     const generateProducts = async () => {
@@ -178,10 +183,10 @@ const Combinations = ({
                   <th>Price (RMB)</th>
                   <th>EAN</th>
                   <th>Supp Cat</th>
-                  <th>Weight</th>
-                  <th>Height</th>
                   <th>Length</th>
                   <th>Width</th>
+                  <th>Height</th>
+                  <th>Weight</th>
                   <th>Tariff Code</th>
                   <th>Taric ID</th>
                 </tr>
@@ -196,10 +201,10 @@ const Combinations = ({
                     <td>{product.supplierItemData.price_rmb}</td>
                     <td>{product.titemData.ean}</td>
                     <td>{product.titemData.supp_cat}</td>
-                    <td>{product.titemData.weight}</td>
-                    <td>{product.titemData.height}</td>
-                    <td>{product.titemData.width}</td>
                     <td>{product.titemData.length}</td>
+                    <td>{product.titemData.width}</td>
+                    <td>{product.titemData.height}</td>
+                    <td>{product.titemData.weight}</td>
                     <td>{product.titemData.tariff_code}</td>
                     <td>{product.titemData.taric_id}</td>
                   </tr>
