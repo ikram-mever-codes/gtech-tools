@@ -33,6 +33,13 @@ const generateEAN13 = () => {
 
 const generateProductWithUniqueEAN = async (ms, parent, parentData) => {
   const uniqueEAN = generateEAN13();
+
+  const parseDimension = (value) => {
+    if (value === undefined || value === null || value === "") return 0;
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+  };
+
   return {
     supplierItemData: {
       supplier_id: parent[0].supplier_id,
@@ -47,10 +54,10 @@ const generateProductWithUniqueEAN = async (ms, parent, parentData) => {
       ean: uniqueEAN,
       tariff_code: parent[0].tariff_code,
       taric_id: parent[0].taric_id,
-      weight: ms.weight,
-      width: ms.width,
-      height: ms.height,
-      length: ms.length,
+      weight: parseDimension(ms.weight),
+      width: parseDimension(ms.width),
+      height: parseDimension(ms.height),
+      length: parseDimension(ms.length),
       item_name_cn: parentData.parent_name_cn,
       item_name_de: parentData.parent_name_de,
       item_name: parentData.parent_name_en,

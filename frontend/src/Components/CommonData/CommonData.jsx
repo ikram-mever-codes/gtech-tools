@@ -38,7 +38,6 @@ const CommonData = ({
     a.click();
     URL.revokeObjectURL(url);
   };
-
   async function handleDataUpdate() {
     let cnf = confirm("Do you want to update Database?");
     if (!cnf) {
@@ -57,41 +56,52 @@ const CommonData = ({
         }
       );
 
-      if (response.status === 200) {
-        const updatedCommonData = commonData.map((cd) => {
-          logOperation(cd.dbData.parent_no_de, cd.dbData.item_name, cd);
-          return {
-            ...cd,
-            dbData: {
-              ...cd.dbData,
-              url: cd.csvData.URL,
-              price_rmb: cd.csvData.price,
-            },
-          };
-        });
-
-        setCommonData(updatedCommonData);
-        downloadLogFile();
-        setAllMatch(true);
-        toast.success("Update successful");
-
-        await handleDataLoad(
-          commonData[0].dbData.item_name,
-          setDbData,
-          setParentData
+      // More thorough response checking
+      if (!response.data || response.status !== 200) {
+        throw new Error(
+          response.data?.message || "Update failed with no error message"
         );
-      } else {
-        toast.error("Failed to update data");
       }
+
+      // First reload the data before updating state
+      await handleDataLoad(
+        commonData[0].dbData.item_name,
+        setDbData,
+        setParentData
+      );
+
+      // Then update local state
+      const updatedCommonData = commonData.map((cd) => {
+        logOperation(cd.dbData.parent_no_de, cd.dbData.item_name, cd);
+        return {
+          ...cd,
+          dbData: {
+            ...cd.dbData,
+            url: cd.csvData.URL,
+            price_rmb: cd.csvData.price,
+          },
+        };
+      });
+
+      setCommonData(updatedCommonData);
+      downloadLogFile();
+      setAllMatch(true);
+      toast.success("Update successful");
     } catch (error) {
+      console.error("Update error details:", {
+        error: error.response?.data || error.message,
+        requestData: commonData,
+      });
       toast.error(
-        error.response?.data?.message || error.message || "An error occurred"
+        `Update failed: ${
+          error.response?.data?.message || error.message || "Unknown error"
+        }`
       );
     } finally {
       setLoading(false);
     }
   }
-
+  console.log(commonData);
   useEffect(() => {
     handleDataLoad(commonData[0]?.dbData?.item_name, setDbData, setParentData);
 
@@ -196,10 +206,10 @@ const CommonData = ({
                           {result}
                         </td>
                         <td>{cd.dbData.ean}</td>
-                        <td>{cd.dbData.value_en}</td>
-                        <td>{cd.dbData.value_en_2}</td>
+                        <td>{cd.dbData.value_de}</td>
+                        <td>{cd.dbData.value_de_2}</td>
                         <td>
-                          {cd.dbData.value_en_3 ? cd.dbData.value_en_3 : ""}
+                          {cd.dbData.value_de_3 ? cd.dbData.value_de_3 : ""}
                         </td>
                         <td
                           className={isPriceDifferent ? "match-different" : ""}

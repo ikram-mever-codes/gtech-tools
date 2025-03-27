@@ -195,31 +195,41 @@ app.put("/data/update", async (req, res) => {
     if (!Array.isArray(data) || data.length === 0) {
       return res.status(400).json({ message: "Invalid input data." });
     }
-    data.forEach(({ dbData, csvData }) => {
-      const newURL = csvData.URL;
-      const newPrice = csvData.price;
 
-      const itemId = dbData.item_id;
-      const updateQuery = `
-        UPDATE supplier_items
-        SET url = ?, price_rmb = ?
-        WHERE item_id = ?;
-      `;
+    // Use Promise.all to handle all updates
+    const updatePromises = data.map(({ dbData, csvData }) => {
+      return new Promise((resolve, reject) => {
+        const newURL = csvData.URL;
+        const newPrice = csvData.price;
+        const itemId = dbData.item_id;
 
-      db.query(updateQuery, [newURL, newPrice, itemId], (err, result) => {
-        if (err) {
-          console.error("Error executing query for item_id:", itemId, err);
-          return res.status(500).json({
-            message: `Error updating supplier items for item_id ${itemId}.`,
-          });
-        }
+        const updateQuery = `
+          UPDATE supplier_items
+          SET url = ?, price_rmb = ?
+          WHERE item_id = ?;
+        `;
+
+        db.query(updateQuery, [newURL, newPrice, itemId], (err, result) => {
+          if (err) {
+            console.error("Error executing query for item_id:", itemId, err);
+            reject(`Error updating item ${itemId}: ${err.message}`);
+          } else {
+            resolve(`Item ${itemId} updated successfully`);
+          }
+        });
       });
     });
 
-    res.status(200).json({ message: "Parent Data Updated successfully." });
+    // Wait for all updates to complete
+    await Promise.all(updatePromises);
+
+    res.status(200).json({ message: "All items updated successfully." });
   } catch (error) {
     console.error("Updating Data Error:", error);
-    res.status(500).json({ message: "Server error." });
+    res.status(500).json({
+      message: "Some updates failed",
+      error: error.message || "Server error",
+    });
   }
 });
 
