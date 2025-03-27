@@ -157,8 +157,8 @@ const CommonData = ({
                 </h2>
               </div>
             )}
-            <div className="common-table-wrapper">
-              <table className="common-data-table">
+            <div className="combinations-table-wrapper h-[56vh] overflow-auto">
+              <table className="combinations-table">
                 <thead>
                   <tr>
                     <th>Result</th>

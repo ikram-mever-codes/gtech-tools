@@ -97,10 +97,10 @@ const CsvData = ({
               Attributes3: row["Attributes3"] || "",
               URL: row["URL"] || "",
               price: row["price"] || "",
-              weight: row["weight"] || 10,
-              height: row["height"] || 10,
-              width: row["width"] || 10,
-              length: row["length"] || 10,
+              weight: row["weight"] || 0,
+              height: row["height"] || 0,
+              width: row["width"] || 0,
+              length: row["length"] || 0,
             }));
 
             const initialModifications = combinedHeaders.reduce(

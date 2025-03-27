@@ -222,6 +222,7 @@ app.put("/data/update", async (req, res) => {
     res.status(500).json({ message: "Server error." });
   }
 });
+
 app.post("/products/add", async (req, res) => {
   const { products, parent_name, parent_name_de, parent_name_cn } = req.body;
 
@@ -300,8 +301,8 @@ app.post("/products/add", async (req, res) => {
       }
 
       const titemsQuery = `
-      INSERT INTO titems (parent_id, itemID_DE, parent_no_de, supp_cat, ean, tariff_code, taric_id, weight, width, height, length, item_name_cn, item_name, RMB_Price, is_new, is_npr, npr_remark, ISBN, many_components, effort_rating, cat_id, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      INSERT INTO titems (parent_id, itemID_DE, parent_no_de, supp_cat, ean, taric_id, weight, width, height, length, item_name_cn, item_name, RMB_Price, is_new, is_npr, npr_remark, ISBN, many_components, effort_rating, cat_id, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?, NOW(), NOW())
       ON DUPLICATE KEY UPDATE item_name = VALUES(item_name), RMB_Price = VALUES(RMB_Price)
     `;
 
@@ -325,7 +326,6 @@ app.post("/products/add", async (req, res) => {
         titemData.parent_no_de,
         titemData.supp_cat,
         titemData.ean,
-        titemData.tariff_code,
         titemData.taric_id,
         titemData.weight,
         titemData.width,
