@@ -14,6 +14,7 @@ import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import "./CsvData.css";
 import InputModal from "../InputModal/InputModal";
+import { Link } from "react-router-dom";
 
 const ItemTypes = {
   HEADER: "header",
@@ -511,22 +512,12 @@ const CsvData = ({
             </div>
           ) : (
             <div className="csv-upload-box flex flex-col gap-5">
-              <div
-                className="csv-upload"
-                onClick={() => {
-                  window.location.href = "/products";
-                }}
-              >
+              <Link className="csv-upload" to={"/products"}>
                 <MdExplore fontSize={25} /> <h3>Browse Products</h3>
-              </div>
-              <div
-                className="csv-upload"
-                onClick={() => {
-                  window.location.href = "/classifications";
-                }}
-              >
+              </Link>
+              <Link className="csv-upload" to="/classifications">
                 <MdClass fontSize={25} /> <h3>Browse Classifications</h3>
-              </div>{" "}
+              </Link>{" "}
               <div
                 className="csv-upload"
                 onClick={() => {
