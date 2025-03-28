@@ -7,6 +7,7 @@ import {
   FaRegWindowClose,
   FaSync,
   FaUpload,
+  FaCopy,
 } from "react-icons/fa";
 import { MdClass, MdExplore, MdFunctions } from "react-icons/md";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
@@ -135,11 +136,44 @@ const CsvData = ({
   };
 
   const handleModificationChange = (header, type) => {
+    if (type === "duplicate") {
+      handleDuplicateColumn(header);
+      return;
+    }
     setModalData({ header, type });
     setShowModal(true);
   };
 
+  const handleDuplicateColumn = (sourceHeader) => {
+    // Only allow duplication between Attributes columns
+    const attributeHeaders = ["Attributes1", "Attributes2", "Attributes3"];
+    const targetAttributeHeaders = attributeHeaders.filter(
+      (h) => h !== sourceHeader
+    );
+
+    setModalData({
+      header: sourceHeader,
+      type: "duplicate",
+      message: `Select target column to copy ${sourceHeader} to:`,
+      targetHeaders: targetAttributeHeaders,
+    });
+    setShowModal(true);
+  };
+
   const handleModalSubmit = (header, type, value) => {
+    if (type === "duplicate") {
+      // Handle column duplication
+      const targetHeader = value;
+      if (targetHeader && targetHeader !== header) {
+        const updatedData = csvData.map((row) => ({
+          ...row,
+          [targetHeader]: row[header],
+        }));
+        setCsvData(updatedData);
+      }
+      return;
+    }
+
     const updatedModifications = {
       ...modifications,
       [header]: {
@@ -259,6 +293,9 @@ const CsvData = ({
           type={modalData.type}
           onSubmit={handleModalSubmit}
           setShowModal={setShowModal}
+          message={modalData.message}
+          isDuplicate={modalData.type === "duplicate"}
+          targetHeaders={modalData.targetHeaders || []}
         />
       )}
       <DndProvider backend={HTML5Backend}>
@@ -320,6 +357,15 @@ const CsvData = ({
                   >
                     <MdFunctions />
                   </button>
+                  <button
+                    onClick={() =>
+                      handleModificationChange("Attributes1", "duplicate")
+                    }
+                    className="mod-btn"
+                    title="Duplicate column"
+                  >
+                    <FaCopy />
+                  </button>
                 </div>
                 <div key={"Attributes2"} className="column-modification">
                   <button
@@ -362,6 +408,15 @@ const CsvData = ({
                   >
                     <MdFunctions />
                   </button>
+                  <button
+                    onClick={() =>
+                      handleModificationChange("Attributes2", "duplicate")
+                    }
+                    className="mod-btn"
+                    title="Duplicate column"
+                  >
+                    <FaCopy />
+                  </button>
                 </div>
                 <div key={"Attributes3"} className="column-modification">
                   <button
@@ -403,6 +458,15 @@ const CsvData = ({
                     className="mod-btn"
                   >
                     <MdFunctions />
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleModificationChange("Attributes3", "duplicate")
+                    }
+                    className="mod-btn"
+                    title="Duplicate column"
+                  >
+                    <FaCopy />
                   </button>
                 </div>
               </div>

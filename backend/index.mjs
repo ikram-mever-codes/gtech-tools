@@ -311,8 +311,8 @@ app.post("/products/add", async (req, res) => {
       }
 
       const titemsQuery = `
-      INSERT INTO titems (parent_id, itemID_DE, parent_no_de, supp_cat, ean, taric_id, weight, width, height, length, item_name_cn, item_name, RMB_Price, is_new, is_npr, npr_remark, ISBN, many_components, effort_rating, cat_id, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?, NOW(), NOW())
+      INSERT INTO titems (parent_id, itemID_DE, parent_no_de, supp_cat, ean, taric_id, weight, width, height, length, item_name_cn, item_name, RMB_Price, is_new, is_npr,  ISBN, many_components, effort_rating, cat_id, photo, pix_path, pix_path_ebay,created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ? , ?,  ?, ? ,NOW(), NOW())
       ON DUPLICATE KEY UPDATE item_name = VALUES(item_name), RMB_Price = VALUES(RMB_Price)
     `;
 
@@ -345,16 +345,18 @@ app.post("/products/add", async (req, res) => {
         itemNameEn,
         titemData.RMB_Price,
         "Y",
-        "Y",
-        "Bulk NewItem Creation",
+        "N",
         1,
         1,
         3,
         1,
+        "DummyPicture.jpg",
+        "DummyPicture.jpg",
+        "DummyPicture.jpg",
       ];
 
-      let insertedItemId;
       await new Promise((resolve, reject) => {
+        let insertedItemId;
         db.query(titemsQuery, titemsValues, (err, titemsResult) => {
           if (err) {
             console.error("Error inserting/updating titem:", err);
