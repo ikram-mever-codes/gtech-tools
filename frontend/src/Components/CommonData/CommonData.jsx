@@ -20,30 +20,53 @@ const CommonData = ({
     const timestamp = new Date().toISOString();
     const logEntry = `${timestamp} - Gtech Data Updated, Parent No: ${parentNo}, Parent Name: ${parentName}, EAN: ${
       cd.dbData.ean
-    }, Attr1: ${cd.dbData.value_en}, Attr2: ${cd.dbData.value_en_2}, Attr3: ${
-      cd.dbData.value_en_3 || ""
-    }`;
+    }, Attr1: ${cd.dbData.value_en || ""}, Attr2: ${
+      cd.dbData.value_en_2 || ""
+    }, Attr3: ${cd.dbData.value_en_3 || ""}`;
 
     setLogEntries((prevEntries) => [...prevEntries, logEntry]);
+    return logEntry; // Return the log entry for immediate use
   };
 
   const downloadLogFile = () => {
-    const timestamp = new Date().toISOString().replace(/:/g, "-").split(".")[0];
-    const fileName = `GTItemInjector_log_${timestamp}.txt`;
-    const blob = new Blob([logEntries.join("\n")], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (logEntries.length === 0) {
+      toast.warning("No log entries to download");
+      return;
+    }
+
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `GTItemInjector_log_${timestamp}.txt`;
+      const content = logEntries.join("\n");
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      console.error("Error downloading log file:", error);
+      toast.error("Failed to download log file");
+    }
   };
+
   async function handleDataUpdate() {
     let cnf = confirm("Do you want to update Database?");
     if (!cnf) {
       return;
     }
+
     setLoading(true);
+    const newLogEntries = []; // Temporary storage for new logs
+
     try {
       const response = await axios.put(
         `${BASE_URL}/data/update`,
@@ -56,23 +79,28 @@ const CommonData = ({
         }
       );
 
-      // More thorough response checking
       if (!response.data || response.status !== 200) {
         throw new Error(
           response.data?.message || "Update failed with no error message"
         );
       }
 
-      // First reload the data before updating state
+      // First reload the data
       await handleDataLoad(
         commonData[0].dbData.item_name,
         setDbData,
         setParentData
       );
 
-      // Then update local state
+      // Process updates and collect logs
       const updatedCommonData = commonData.map((cd) => {
-        logOperation(cd.dbData.parent_no_de, cd.dbData.item_name, cd);
+        const logEntry = logOperation(
+          cd.dbData.parent_no_de,
+          cd.dbData.item_name,
+          cd
+        );
+        newLogEntries.push(logEntry);
+
         return {
           ...cd,
           dbData: {
@@ -83,9 +111,10 @@ const CommonData = ({
         };
       });
 
+      // Update state once with all changes
       setCommonData(updatedCommonData);
-      downloadLogFile();
-      setAllMatch(true);
+      setLogEntries((prev) => [...prev, ...newLogEntries]);
+
       toast.success("Update successful");
     } catch (error) {
       console.error("Update error details:", {
@@ -101,15 +130,21 @@ const CommonData = ({
       setLoading(false);
     }
   }
-  console.log(commonData);
+
   useEffect(() => {
-    handleDataLoad(commonData[0]?.dbData?.item_name, setDbData, setParentData);
+    if (commonData.length > 0) {
+      handleDataLoad(
+        commonData[0]?.dbData?.item_name,
+        setDbData,
+        setParentData
+      );
+    }
 
     const allMatch = commonData.every((cd) => {
       const isUrlDifferent =
-        cd.csvData.URL.toString() !== cd.dbData.url.toString();
+        cd.csvData.URL?.toString() !== cd.dbData.url?.toString();
       const isPriceDifferent =
-        cd.csvData.price.toString() !== cd.dbData.price_rmb.toString();
+        cd.csvData.price?.toString() !== cd.dbData.price_rmb?.toString();
       return !isUrlDifferent && !isPriceDifferent;
     });
 

@@ -196,38 +196,65 @@ app.put("/data/update", async (req, res) => {
       return res.status(400).json({ message: "Invalid input data." });
     }
 
-    // Use Promise.all to handle all updates
-    const updatePromises = data.map(({ dbData, csvData }) => {
-      return new Promise((resolve, reject) => {
-        const newURL = csvData.URL;
-        const newPrice = csvData.price;
-        const itemId = dbData.item_id;
+    // Track results of all updates
+    const results = await Promise.allSettled(
+      data.map(({ dbData, csvData }) => {
+        return new Promise((resolve, reject) => {
+          const newURL = csvData.URL;
+          const newPrice = csvData.price;
+          const itemId = dbData.item_id;
 
-        const updateQuery = `
-          UPDATE supplier_items
-          SET url = ?, price_rmb = ?
-          WHERE item_id = ?;
-        `;
-
-        db.query(updateQuery, [newURL, newPrice, itemId], (err, result) => {
-          if (err) {
-            console.error("Error executing query for item_id:", itemId, err);
-            reject(`Error updating item ${itemId}: ${err.message}`);
-          } else {
-            resolve(`Item ${itemId} updated successfully`);
+          // Validate inputs
+          if (!itemId) {
+            return reject(`Missing item_id for update`);
           }
+
+          const updateQuery = `
+            UPDATE supplier_items
+            SET url = ?, price_rmb = ?
+            WHERE item_id = ?;
+          `;
+
+          db.query(updateQuery, [newURL, newPrice, itemId], (err, result) => {
+            if (err) {
+              console.error("Error executing query for item_id:", itemId, err);
+              reject({ itemId, error: err.message });
+            } else if (result.affectedRows === 0) {
+              reject({
+                itemId,
+                error: "No rows affected - item may not exist",
+              });
+            } else {
+              resolve({ itemId, success: true });
+            }
+          });
         });
+      })
+    );
+
+    // Analyze results
+    const successfulUpdates = results.filter((r) => r.status === "fulfilled");
+    const failedUpdates = results.filter((r) => r.status === "rejected");
+
+    if (failedUpdates.length > 0) {
+      console.error("Some updates failed:", failedUpdates);
+      return res.status(207).json({
+        // 207 Multi-Status
+        message: "Some updates failed",
+        successCount: successfulUpdates.length,
+        failedCount: failedUpdates.length,
+        failedUpdates: failedUpdates.map((f) => f.reason),
       });
+    }
+
+    res.status(200).json({
+      message: "All items updated successfully.",
+      updatedCount: successfulUpdates.length,
     });
-
-    // Wait for all updates to complete
-    await Promise.all(updatePromises);
-
-    res.status(200).json({ message: "All items updated successfully." });
   } catch (error) {
     console.error("Updating Data Error:", error);
     res.status(500).json({
-      message: "Some updates failed",
+      message: "Internal server error during updates",
       error: error.message || "Server error",
     });
   }
@@ -355,8 +382,8 @@ app.post("/products/add", async (req, res) => {
         "DummyPicture.jpg",
       ];
 
+      let insertedItemId;
       await new Promise((resolve, reject) => {
-        let insertedItemId;
         db.query(titemsQuery, titemsValues, (err, titemsResult) => {
           if (err) {
             console.error("Error inserting/updating titem:", err);
