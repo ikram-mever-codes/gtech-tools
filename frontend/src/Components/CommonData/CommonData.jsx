@@ -15,6 +15,10 @@ const CommonData = ({
   const [loading, setLoading] = useState(false);
   const [allMatch, setAllMatch] = useState(false);
   const [logEntries, setLogEntries] = useState([]);
+  const [updateProgress, setUpdateProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   const logOperation = (parentNo, parentName, cd) => {
     const timestamp = new Date().toISOString();
@@ -25,7 +29,7 @@ const CommonData = ({
     }, Attr3: ${cd.dbData.value_en_3 || ""}`;
 
     setLogEntries((prevEntries) => [...prevEntries, logEntry]);
-    return logEntry; // Return the log entry for immediate use
+    return logEntry;
   };
 
   const downloadLogFile = () => {
@@ -47,7 +51,6 @@ const CommonData = ({
       document.body.appendChild(a);
       a.click();
 
-      // Cleanup
       setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
@@ -59,63 +62,91 @@ const CommonData = ({
   };
 
   async function handleDataUpdate() {
-    let cnf = confirm("Do you want to update Database?");
+    let cnf = confirm(
+      `Do you want to update ${commonData.length} items in the Database?`
+    );
     if (!cnf) {
       return;
     }
 
     setLoading(true);
-    const newLogEntries = []; // Temporary storage for new logs
+    setUpdateProgress({ current: 0, total: commonData.length });
+    const newLogEntries = [];
+    const chunkSize = 100; // Process 100 items at a time
+    const totalChunks = Math.ceil(commonData.length / chunkSize);
 
     try {
-      const response = await axios.put(
-        `${BASE_URL}/data/update`,
-        { data: commonData },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          withCredentials: true,
-        }
-      );
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = start + chunkSize;
+        const chunk = commonData.slice(start, end);
 
-      if (!response.data || response.status !== 200) {
-        throw new Error(
-          response.data?.message || "Update failed with no error message"
+        const response = await axios.put(
+          `${BASE_URL}/data/update`,
+          { data: chunk },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            withCredentials: true,
+          }
         );
+
+        if (!response.data || response.status !== 200) {
+          throw new Error(
+            response.data?.message ||
+              `Update failed for chunk ${i + 1}/${totalChunks}`
+          );
+        }
+
+        // Process updates and collect logs for this chunk
+        const updatedChunk = chunk.map((cd) => {
+          const logEntry = logOperation(
+            cd.dbData.parent_no_de,
+            cd.dbData.item_name,
+            cd
+          );
+          newLogEntries.push(logEntry);
+
+          return {
+            ...cd,
+            dbData: {
+              ...cd.dbData,
+              url: cd.csvData.URL,
+              price_rmb: cd.csvData.price,
+            },
+          };
+        });
+
+        // Update progress
+        const currentProgress = Math.min(end, commonData.length);
+        setUpdateProgress({
+          current: currentProgress,
+          total: commonData.length,
+        });
+        toast.update(
+          `Updating items (${currentProgress}/${commonData.length})...`
+        );
+
+        // Update state with the processed chunk
+        setCommonData((prevData) => {
+          const newData = [...prevData];
+          for (let j = start; j < end && j < newData.length; j++) {
+            newData[j] = updatedChunk[j - start];
+          }
+          return newData;
+        });
       }
 
-      // First reload the data
+      // Final reload after all updates
       await handleDataLoad(
         commonData[0].dbData.item_name,
         setDbData,
         setParentData
       );
 
-      // Process updates and collect logs
-      const updatedCommonData = commonData.map((cd) => {
-        const logEntry = logOperation(
-          cd.dbData.parent_no_de,
-          cd.dbData.item_name,
-          cd
-        );
-        newLogEntries.push(logEntry);
-
-        return {
-          ...cd,
-          dbData: {
-            ...cd.dbData,
-            url: cd.csvData.URL,
-            price_rmb: cd.csvData.price,
-          },
-        };
-      });
-
-      // Update state once with all changes
-      setCommonData(updatedCommonData);
       setLogEntries((prev) => [...prev, ...newLogEntries]);
-
-      toast.success("Update successful");
+      toast.success("All updates completed successfully");
     } catch (error) {
       console.error("Update error details:", {
         error: error.response?.data || error.message,
@@ -128,6 +159,7 @@ const CommonData = ({
       );
     } finally {
       setLoading(false);
+      setUpdateProgress({ current: 0, total: 0 });
     }
   }
 

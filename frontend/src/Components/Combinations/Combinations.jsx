@@ -88,59 +88,99 @@ const Combinations = ({
   setCsvData,
 }) => {
   const [eanGenerated, setEanGenerated] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [postedCount, setPostedCount] = useState(0);
 
   async function handlePostAll() {
     if (products.some((product) => product.titemData.weight === 0)) {
       alert("Weight of one or more items is 0");
       return;
     }
-    if (!confirm("Do you want to post all products?")) return;
-    toast.loading("Uploading Products...");
+    if (!confirm(`Do you want to post all ${products.length} products?`))
+      return;
+
+    setIsPosting(true);
+    setPostedCount(0);
+    toast.loading(`Uploading products (0/${products.length})...`);
+
     try {
-      let res = await axios.post(
-        `${BASE_URL}/products/add`,
-        {
-          products,
-          parent_name: parentData.parent_name_en,
-          parent_name_de: parentData.parent_name_de,
-          parent_name_cn: parentData.name_cn,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
+      // Process products in chunks of 100
+      const chunkSize = 100;
+      const totalChunks = Math.ceil(products.length / chunkSize);
+
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = start + chunkSize;
+        const chunk = products.slice(start, end);
+
+        const res = await axios.post(
+          `${BASE_URL}/products/add`,
+          {
+            products: chunk,
+            parent_name: parentData.parent_name_en,
+            parent_name_de: parentData.parent_name_de,
+            parent_name_cn: parentData.name_cn,
           },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (res.status !== 200) {
+          throw new Error(res.data.message || "Failed to upload chunk");
         }
-      );
-      toast.dismiss();
-      if (res.status !== 200) {
-        toast.error(res.data.message);
-        return;
+
+        setPostedCount(end > products.length ? products.length : end);
+        toast.update(
+          `Uploading products (${
+            end > products.length ? products.length : end
+          }/${products.length})...`
+        );
       }
+
+      // Final success handling
+      toast.dismiss();
+      setIsPosting(false);
       setShowMData(false);
       setMissingCombinations([]);
       setProducts([]);
       setCsvData([]);
       setDbData(null);
-      alert("Products Added Successfully!");
-      // toast.success(res.data.message);
+      alert("All products added successfully!");
     } catch (error) {
       toast.dismiss();
+      setIsPosting(false);
       toast.error(error.response?.data?.message || error.message);
+      console.error("Error uploading products:", error);
     }
   }
-  console.log(parentData);
+
   // Only generate EANs/products one time, on first render
   useEffect(() => {
     const generateProducts = async () => {
       if (missingCombinations.length) {
-        const newProducts = await Promise.all(
-          missingCombinations.map((ms) =>
-            generateProductWithUniqueEAN(ms, parent, parentData)
-          )
-        );
+        // Process in chunks to avoid memory issues with large datasets
+        const chunkSize = 100;
+        const totalChunks = Math.ceil(missingCombinations.length / chunkSize);
+        let allNewProducts = [];
+
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * chunkSize;
+          const end = start + chunkSize;
+          const chunk = missingCombinations.slice(start, end);
+
+          const newProducts = await Promise.all(
+            chunk.map((ms) =>
+              generateProductWithUniqueEAN(ms, parent, parentData)
+            )
+          );
+          allNewProducts = [...allNewProducts, ...newProducts];
+        }
 
         setProducts((prevProducts) => {
-          const filteredNewProducts = newProducts.filter((newProduct) => {
+          const filteredNewProducts = allNewProducts.filter((newProduct) => {
             return !prevProducts.some(
               (product) =>
                 product.supplierItemData.url === newProduct.supplierItemData.url
