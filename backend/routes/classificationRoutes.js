@@ -9,6 +9,8 @@ import {
   removeProductsFromSubClass,
   getProductsBySubClass,
   getSubClassDetails,
+  getAttributeModifications,
+  saveAttributeModifications,
 } from "../controllers/classificationController.js";
 
 const router = express.Router();
@@ -25,5 +27,8 @@ router.get("/all", getAllClassifications);
 router.post("/subclass/:subClassId/products", addProductsToSubClass);
 router.delete("/subclass/:subClassId/products", removeProductsFromSubClass);
 router.get("/subclass/:subClassId/products", getProductsBySubClass);
+
+router.put("/subclass/:subClassId/modifications", saveAttributeModifications);
+router.get("/subclass/:subClassId/modifications", getAttributeModifications);
 
 export default router;

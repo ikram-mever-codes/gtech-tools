@@ -371,8 +371,8 @@ app.post("/products/add", async (req, res) => {
         INSERT INTO titems (
           parent_id, itemID_DE, parent_no_de, supp_cat, ean, taric_id, weight, width, height, length, 
           item_name_cn, item_name, RMB_Price, is_new, is_npr, ISBN, many_components, effort_rating, 
-          cat_id, photo, pix_path, pix_path_ebay, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+          cat_id, photo, pix_path, pix_path_ebay,  is_qty_dividable , created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE item_name = VALUES(item_name), RMB_Price = VALUES(RMB_Price)
       `;
 
@@ -413,6 +413,7 @@ app.post("/products/add", async (req, res) => {
         "DummyPicture.jpg",
         "DummyPicture.jpg",
         "DummyPicture.jpg",
+        "N",
       ];
 
       let insertedItemId;

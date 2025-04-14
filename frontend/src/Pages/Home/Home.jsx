@@ -3,11 +3,15 @@ import "./Home.css";
 import CsvData from "../../Components/CsvData/CsvData.jsx";
 import DbData from "../../Components/DbData/DbData.jsx";
 import MData from "../../Components/mData/mData";
-import { FaExchangeAlt } from "react-icons/fa";
+import { FaExchangeAlt, FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useSearchParams, Link } from "react-router-dom";
 import { getSingleProduct } from "../../apis/product.js";
-import { getProductsBySubClass } from "../../apis/classifications";
+import {
+  getProductsBySubClass,
+  getSingleSubClass,
+  saveAttributeModifications,
+} from "../../apis/classifications";
 
 const Home = () => {
   const [searchParams] = useSearchParams();
@@ -21,9 +25,58 @@ const Home = () => {
   const [showMData, setShowMData] = useState(false);
   const [parentData, setParentData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [subClassModifications, setSubClassModifications] = useState(null);
+  const [hasModificationChanges, setHasModificationChanges] = useState(false);
 
-  // Transform single product combinations to CSV format
-  const transformProductToCSV = (product) => {
+  // Modified applyModifications function
+  const applyModifications = (value, modifications) => {
+    if (!modifications || !value) return value;
+
+    let modifiedValue = String(value);
+
+    // Apply remove
+    if (modifications.remove) {
+      modifiedValue = modifiedValue.replace(
+        new RegExp(modifications.remove, "g"),
+        ""
+      );
+    }
+
+    // Apply find/replace
+    if (modifications.find && modifications.replace) {
+      modifiedValue = modifiedValue.replace(
+        new RegExp(modifications.find, "g"),
+        modifications.replace
+      );
+    }
+
+    // Apply formula
+    if (modifications.formula) {
+      try {
+        const numericValue = parseFloat(modifiedValue);
+        if (!isNaN(numericValue)) {
+          modifiedValue = String(
+            eval(modifications.formula.replace(/x/g, numericValue))
+          );
+        }
+      } catch (e) {
+        console.error("Error applying formula:", e);
+      }
+    }
+
+    // Apply prefix/suffix
+    if (modifications.prefix) {
+      modifiedValue = modifications.prefix + modifiedValue;
+    }
+    if (modifications.suffix) {
+      modifiedValue = modifiedValue + modifications.suffix;
+    }
+
+    return modifiedValue;
+  };
+
+  // Transform product with modifications
+  const transformProductToCSV = (product, modifications) => {
     if (!product || !product.combinations) return [];
 
     try {
@@ -31,52 +84,85 @@ const Home = () => {
         ? product.combinations
         : JSON.parse(product.combinations);
 
-      return combinations.map((combination, index) => ({
-        No: (index + 1).toString(),
-        URL: product.link || "",
-        Title: product.title || "",
-        price: combination.price?.toString() || "",
-        Attributes1: combination.attribute1 || "",
-        Attributes2: combination.attribute2 || "",
-        Attributes3: combination.attribute3 || "",
-        Attributes4: combination.attribute4 || "",
-        Attributes5: combination.attribute5 || "",
-        ProductId: product._id || "",
-        weight: product.weight,
-        height: product.height,
-        length: product.length,
-        width: product.width,
-      }));
+      return combinations.map((combination, index) => {
+        const base = {
+          No: (index + 1).toString(),
+          URL: product.link || "",
+          Title: product.title || "",
+          price: combination.price?.toString() || "",
+          ProductId: product._id || "",
+          weight: product.weight,
+          height: product.height,
+          length: product.length,
+          width: product.width,
+        };
+
+        // Apply modifications to each attribute
+        const attributes = {
+          Attributes1: applyModifications(
+            combination.attribute1,
+            modifications?.Attributes1
+          ),
+          Attributes2: applyModifications(
+            combination.attribute2,
+            modifications?.Attributes2
+          ),
+          Attributes3: applyModifications(
+            combination.attribute3,
+            modifications?.Attributes3
+          ),
+          Attributes4: applyModifications(
+            combination.attribute4,
+            modifications?.Attributes4
+          ),
+          Attributes5: applyModifications(
+            combination.attribute5,
+            modifications?.Attributes5
+          ),
+        };
+
+        return { ...base, ...attributes };
+      });
     } catch (error) {
       console.error("Error transforming product to CSV:", error);
       return [];
     }
   };
 
-  // Transform multiple products' combinations to CSV format
-  const transformProductsToCSV = (products) => {
+  // Transform products with modifications
+  const transformProductsToCSV = (products, modifications) => {
     if (!products || !Array.isArray(products)) return [];
 
     let allCombinations = [];
     let combinationIndex = 1;
 
     products.forEach((product) => {
-      const productCombinations = transformProductToCSV(product).map(
-        (combination) => {
-          const currentIndex = combinationIndex;
-          combinationIndex += 1;
-          return {
-            ...combination,
-            No: String(currentIndex),
-          };
-        }
-      );
+      const productCombinations = transformProductToCSV(
+        product,
+        modifications
+      ).map((combination) => {
+        const currentIndex = combinationIndex;
+        combinationIndex += 1;
+        return {
+          ...combination,
+          No: String(currentIndex),
+        };
+      });
       allCombinations = [...allCombinations, ...productCombinations];
     });
 
     return allCombinations;
   };
-  // Initialize modifications structure
+  const processData = (transformedData) => {
+    if (transformedData.length > 0) {
+      const dataHeaders = Object.keys(transformedData[0]);
+      setHeaders(dataHeaders);
+      setCsvData(transformedData);
+      setOrgCsvData(transformedData);
+      return createInitialModifications(dataHeaders);
+    }
+  };
+
   const createInitialModifications = (headers) => {
     return headers.reduce((acc, header) => {
       acc[header] = {
@@ -91,18 +177,7 @@ const Home = () => {
     }, {});
   };
 
-  // Process CSV data
-  const processData = (transformedData) => {
-    if (transformedData.length > 0) {
-      const dataHeaders = Object.keys(transformedData[0]);
-      setHeaders(dataHeaders);
-      setCsvData(transformedData);
-      setOrgCsvData(transformedData);
-      return createInitialModifications(dataHeaders);
-    }
-  };
-
-  // Fetch data based on query parameters
+  // Fetch data with modificationscreateInitialModifications
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -111,21 +186,31 @@ const Home = () => {
         const subClassId = searchParams.get("subClassId");
 
         if (subClassId) {
-          // Fetch all products from subclass
-          const response = await getProductsBySubClass(subClassId);
-          if (response?.data) {
-            const transformedData = transformProductsToCSV(response.data);
-            if (transformedData.length > 0) {
-              processData(transformedData);
-              toast.success(
-                `Loaded ${response.data.length} products from subclass`
+          const subclassResponse = await getSingleSubClass(subClassId);
+          if (subclassResponse?.success) {
+            const modifications = JSON.parse(
+              subclassResponse.data.attributeModifications
+            );
+            console.log("Modifications", modifications);
+
+            setSubClassModifications(modifications);
+
+            const response = await getProductsBySubClass(subClassId);
+            if (response?.data) {
+              const transformedData = transformProductsToCSV(
+                response.data,
+                modifications
               );
-            } else {
-              toast.warning("No products found in subclass");
+              if (transformedData.length > 0) {
+                processData(transformedData);
+                toast.success(
+                  `Loaded ${response.data.length} products from subclass`
+                );
+              }
             }
           }
         } else if (productId) {
-          // Fetch single product
+          // Existing product loading logic
           const response = await getSingleProduct(productId);
           if (response.success) {
             setProduct(response.data);
@@ -134,13 +219,10 @@ const Home = () => {
               processData(transformedData);
               toast.success("Product data loaded successfully");
             }
-          } else {
-            toast.error("Failed to fetch product data");
           }
         }
       } catch (error) {
         toast.error("Error fetching data: " + error.message);
-        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -149,72 +231,37 @@ const Home = () => {
     fetchData();
   }, [searchParams]);
 
-  const compareValues = () => {
-    let currentFilteredData = [...csvData];
-    let foundCommonData = [];
+  // Save modifications handler
+  const handleSaveModifications = async () => {
+    const subClassId = searchParams.get("subClassId");
+    if (!subClassId) return;
 
-    if (dbData) {
-      dbData.forEach((item) => {
-        const matches = [
-          (item2) => item2.Attributes1 === item.value_de,
-          (item2) => item2.Attributes2 === item.value_de_2,
-          (item2) => item2.Attributes3 === item.value_de_3,
-        ];
-
-        let matchIndex = currentFilteredData.findIndex((item2) =>
-          matches.every((fn) => fn(item2))
-        );
-
-        if (matchIndex !== -1) {
-          foundCommonData.push({
-            dbData: item,
-            csvData: currentFilteredData[matchIndex],
-          });
-
-          currentFilteredData.splice(matchIndex, 1);
-        }
-      });
+    try {
+      await saveAttributeModifications(subClassId, subClassModifications);
+      toast.success("Modifications saved successfully");
+      setHasModificationChanges(false);
+    } catch (error) {
+      toast.error("Failed to save modifications");
     }
-
-    setMissingCombinations(currentFilteredData);
-    setCommonData(foundCommonData);
   };
 
-  const checkAttributesEquality = () => {
-    if (!csvData.length || !dbData?.length) return false;
-
-    const csvAttributesCount = Math.max(
-      csvData[0]?.Attributes1 ? 1 : 0,
-      csvData[0]?.Attributes2 ? 2 : 0,
-      csvData[0]?.Attributes3 ? 3 : 0
-    );
-
-    const dbAttributesCount = Math.max(
-      dbData[0]?.value_de ? 1 : 0,
-      dbData[0]?.value_de_2 ? 2 : 0,
-      dbData[0]?.value_de_3 ? 3 : 0
-    );
-
-    return csvAttributesCount === dbAttributesCount;
-  };
+  // Add this new button to the UI
+  const renderSaveButton = () => (
+    <button
+      className="save-modifications-btn"
+      onClick={handleSaveModifications}
+      disabled={!hasModificationChanges}
+    >
+      <FaSave /> Save Modifications
+    </button>
+  );
 
   return (
     <div className="home-container">
-      {showMData && (
-        <MData
-          setShowMData={setShowMData}
-          missingCombinations={missingCombinations}
-          setMissingCombinations={setMissingCombinations}
-          parentData={parentData}
-          parent={dbData}
-          setParentData={setParentData}
-          setCsvData={setCsvData}
-          setDbData={setDbData}
-          commonData={commonData}
-          setCommonData={setCommonData}
-        />
-      )}
+      {/* Add save button at the top */}
+      {searchParams.get("subClassId") && renderSaveButton()}
 
+      {/* Existing comparison button */}
       <div className="attribute-selection">
         <button
           className={`mb-[2rem] ${
@@ -227,9 +274,7 @@ const Home = () => {
               return;
             }
             if (!checkAttributesEquality()) {
-              toast.error(
-                "The number of attributes in CSV and DB data are not equal. Please make sure both have the same number of attributes."
-              );
+              toast.error("Mismatched attributes between CSV and DB data");
               return;
             }
             compareValues();
@@ -240,6 +285,7 @@ const Home = () => {
         </button>
       </div>
 
+      {/* Existing data containers */}
       <div className="home-box">
         <DbData
           setDbData={setDbData}
@@ -257,6 +303,11 @@ const Home = () => {
           initialData={csvData.length > 0}
           setOrgCsvData={setOrgCsvData}
           isLoading={isLoading}
+          initialModifications={subClassModifications}
+          onModificationsChange={(mods) => {
+            setSubClassModifications(mods);
+            setHasModificationChanges(true);
+          }}
         />
       </div>
     </div>

@@ -51,6 +51,48 @@ const SubClass = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    attributeModifications: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: null,
+      validate: {
+        isValidModifications(value) {
+          if (value === null) return;
+
+          if (typeof value !== "object") {
+            throw new Error("Attribute modifications must be an object");
+          }
+
+          for (const [attribute, mods] of Object.entries(value)) {
+            if (
+              !["Attributes1", "Attributes2", "Attributes3"].includes(attribute)
+            ) {
+              throw new Error(`Invalid attribute name: ${attribute}`);
+            }
+
+            if (mods && typeof mods === "object") {
+              const validKeys = [
+                "prefix",
+                "suffix",
+                "find",
+                "replace",
+                "remove",
+                "formula",
+              ];
+              for (const key of Object.keys(mods)) {
+                if (!validKeys.includes(key)) {
+                  throw new Error(`Invalid modification key: ${key}`);
+                }
+
+                if (typeof mods[key] !== "string") {
+                  throw new Error(`Modification ${key} must be a string`);
+                }
+              }
+            }
+          }
+        },
+      },
+    },
     classificationId: {
       type: DataTypes.INTEGER,
       allowNull: false,

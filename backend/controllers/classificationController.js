@@ -6,6 +6,9 @@ import {
 } from "../models/classification.js";
 import Product from "../models/products.js";
 import ErrorHandler from "../utils/errorHandler.js";
+// controllers/classificationController.js
+
+// Updated createClassification controller
 export const createClassification = async (req, res, next) => {
   const { name, description, subClasses } = req.body;
 
@@ -26,7 +29,8 @@ export const createClassification = async (req, res, next) => {
               name: subClass.name,
               description: subClass.description,
               classificationId: classification.id,
-              numberOfAttributes: subClass.numberOfAttributes || 0, // Add this field
+              numberOfAttributes: subClass.numberOfAttributes || 0,
+              attributeModifications: subClass.attributeModifications || null, // Add this line
             },
             { transaction: t }
           )
@@ -50,6 +54,8 @@ export const createClassification = async (req, res, next) => {
     return next(error);
   }
 };
+
+// Updated updateClassification controller
 export const updateClassification = async (req, res, next) => {
   const { id } = req.params;
   const { name, description, subClasses, isActive } = req.body;
@@ -64,15 +70,12 @@ export const updateClassification = async (req, res, next) => {
         return next(new ErrorHandler("Classification not found", 404));
       }
 
-      // Update main classification
       await classification.update(
         { name, description, isActive },
         { transaction: t }
       );
 
-      // If subClasses are provided, update them
       if (subClasses && Array.isArray(subClasses)) {
-        // Get existing subClass IDs
         const existingSubClasses = await SubClass.findAll({
           where: { classificationId: id },
           transaction: t,
@@ -81,7 +84,6 @@ export const updateClassification = async (req, res, next) => {
         const existingIds = existingSubClasses.map((sc) => sc.id);
         const updatedIds = subClasses.filter((sc) => sc.id).map((sc) => sc.id);
 
-        // Delete removed subClasses
         const idsToDelete = existingIds.filter(
           (id) => !updatedIds.includes(id)
         );
@@ -92,7 +94,6 @@ export const updateClassification = async (req, res, next) => {
           });
         }
 
-        // Update or create subClasses
         for (const subClass of subClasses) {
           if (subClass.id) {
             await SubClass.update(
@@ -100,7 +101,8 @@ export const updateClassification = async (req, res, next) => {
                 name: subClass.name,
                 description: subClass.description,
                 isActive: subClass.isActive,
-                numberOfAttributes: subClass.numberOfAttributes || 0, // Add this field
+                numberOfAttributes: subClass.numberOfAttributes || 0,
+                attributeModifications: subClass.attributeModifications || null, // Add this line
               },
               {
                 where: { id: subClass.id },
@@ -112,7 +114,8 @@ export const updateClassification = async (req, res, next) => {
               {
                 ...subClass,
                 classificationId: id,
-                numberOfAttributes: subClass.numberOfAttributes || 0, // Add this field
+                numberOfAttributes: subClass.numberOfAttributes || 0,
+                attributeModifications: subClass.attributeModifications || null, // Add this line
               },
               { transaction: t }
             );
@@ -120,7 +123,6 @@ export const updateClassification = async (req, res, next) => {
         }
       }
 
-      // Return updated classification with subClasses
       return await Classification.findByPk(id, {
         include: [{ model: SubClass, as: "subClasses" }],
         transaction: t,
@@ -348,6 +350,64 @@ export const getProductsBySubClass = async (req, res, next) => {
   }
 };
 
+export const saveAttributeModifications = async (req, res, next) => {
+  const { subClassId } = req.params;
+  const { modifications } = req.body;
+
+  try {
+    const subClass = await SubClass.findByPk(subClassId);
+
+    if (!subClass) {
+      return next(new ErrorHandler("SubClass not found", 404));
+    }
+
+    // Validate modifications structure
+    if (modifications && typeof modifications !== "object") {
+      return next(new ErrorHandler("Modifications must be an object", 400));
+    }
+
+    // Update the subclass with new modifications
+    subClass.attributeModifications = modifications;
+    await subClass.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Attribute modifications saved successfully",
+      data: {
+        subClassId: subClass.id,
+        modifications: subClass.attributeModifications,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const getAttributeModifications = async (req, res, next) => {
+  const { subClassId } = req.params;
+
+  try {
+    const subClass = await SubClass.findByPk(subClassId, {
+      attributes: ["id", "attributeModifications"],
+    });
+
+    if (!subClass) {
+      return next(new ErrorHandler("SubClass not found", 404));
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        subClassId: subClass.id,
+        modifications: subClass.attributeModifications,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Update getSubClassDetails to include modifications
 export const getSubClassDetails = async (req, res, next) => {
   const { id } = req.params;
 
@@ -367,6 +427,9 @@ export const getSubClassDetails = async (req, res, next) => {
           },
         },
       ],
+      attributes: {
+        include: ["attributeModifications"],
+      },
     });
 
     if (!subClass) {

@@ -256,7 +256,7 @@ const AllClassifications = () => {
         await deleteClassification(id);
         setClassifications((prevClassifications) =>
           prevClassifications.filter(
-            (classification) => classification._id !== id
+            (classification) => classification.id !== id
           )
         );
       } catch (error) {
@@ -483,21 +483,21 @@ const AllClassifications = () => {
           >
             {filteredClassifications.map((classification) => (
               <ClassificationCard
-                key={classification._id}
+                key={classification.id}
                 classification={classification}
-                onDelete={() => handleDelete(classification._id)}
+                onDelete={() => handleDelete(classification.id)}
                 onEdit={() =>
                   navigate(
                     `/classifications/create?classificationId=${classification.id}`
                   )
                 }
-                expanded={expandedCards.has(classification._id)}
+                expanded={expandedCards.has(classification.id)}
                 onToggle={() => {
                   const newExpanded = new Set(expandedCards);
-                  if (newExpanded.has(classification._id)) {
-                    newExpanded.delete(classification._id);
+                  if (newExpanded.has(classification.id)) {
+                    newExpanded.delete(classification.id);
                   } else {
-                    newExpanded.add(classification._id);
+                    newExpanded.add(classification.id);
                   }
                   setExpandedCards(newExpanded);
                 }}

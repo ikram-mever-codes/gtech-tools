@@ -1,6 +1,6 @@
 import api, { handleApiError } from "./api";
 
-// Get all classifications
+// Classification CRUD Operations
 export const getAllClassifications = async () => {
   try {
     const res = await api.get(`/classifications/all`);
@@ -14,16 +14,6 @@ export const getAllClassifications = async () => {
 export const getSingleClassification = async (classificationId) => {
   try {
     const res = await api.get(`/classifications/single/${classificationId}`);
-    const data = res.data;
-    return data;
-  } catch (error) {
-    handleApiError(error);
-  }
-};
-
-export const getSingleSubClass = async (id) => {
-  try {
-    const res = await api.get(`/classifications/single/subclass/${id}`);
     const data = res.data;
     return data;
   } catch (error) {
@@ -54,7 +44,6 @@ export const updateClassification = async (classificationId, updateData) => {
   }
 };
 
-// Delete classification
 export const deleteClassification = async (classificationId) => {
   try {
     const res = await api.delete(`/classifications/${classificationId}`);
@@ -65,7 +54,18 @@ export const deleteClassification = async (classificationId) => {
   }
 };
 
-// Add products to subclass
+// SubClass Operations
+export const getSingleSubClass = async (id) => {
+  try {
+    const res = await api.get(`/classifications/single/subclass/${id}`);
+    const data = res.data;
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+// Product-SubClass Association
 export const addProductsToSubClass = async (subClassId, productsData) => {
   try {
     const res = await api.post(
@@ -79,7 +79,6 @@ export const addProductsToSubClass = async (subClassId, productsData) => {
   }
 };
 
-// Remove products from subclass
 export const removeProductsFromSubClass = async (subClassId, productIds) => {
   try {
     const res = await api.delete(
@@ -99,6 +98,31 @@ export const getProductsBySubClass = async (subClassId) => {
   try {
     const res = await api.get(
       `/classifications/subclass/${subClassId}/products`
+    );
+    const data = res.data;
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const saveAttributeModifications = async (subClassId, modifications) => {
+  try {
+    const res = await api.put(
+      `/classifications/subclass/${subClassId}/modifications`,
+      { modifications }
+    );
+    const data = res.data;
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const getAttributeModifications = async (subClassId) => {
+  try {
+    const res = await api.get(
+      `/classifications/subclass/${subClassId}/modifications`
     );
     const data = res.data;
     return data;

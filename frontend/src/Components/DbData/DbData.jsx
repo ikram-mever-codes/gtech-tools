@@ -61,6 +61,7 @@ const DbData = ({ dbData, setDbData, setParentData, setSupplierItem }) => {
       handleDataLoad(parent_name, setDbData, setParentData);
     }
   }, []);
+
   const searchProducts = async (en_name) => {
     try {
       let res = await axios.get(

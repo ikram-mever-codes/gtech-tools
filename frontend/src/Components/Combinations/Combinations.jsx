@@ -90,12 +90,17 @@ const Combinations = ({
   const [eanGenerated, setEanGenerated] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [postedCount, setPostedCount] = useState(0);
-
   async function handlePostAll() {
     if (products.some((product) => product.titemData.weight === 0)) {
       alert("Weight of one or more items is 0");
       return;
     }
+
+    if (!parentData.supplier_id || !parentData.taric_id) {
+      toast.error("Supplier ID or Taric ID is missing in parent data.");
+      return; // Prevent posting
+    }
+
     if (!confirm(`Do you want to post all ${products.length} products?`))
       return;
 
@@ -104,7 +109,6 @@ const Combinations = ({
     toast.loading(`Uploading products (0/${products.length})...`);
 
     try {
-      // Process products in chunks of 100
       const chunkSize = 100;
       const totalChunks = Math.ceil(products.length / chunkSize);
 
@@ -113,34 +117,72 @@ const Combinations = ({
         const end = start + chunkSize;
         const chunk = products.slice(start, end);
 
-        const res = await axios.post(
-          `${BASE_URL}/products/add`,
-          {
-            products: chunk,
-            parent_name: parentData.parent_name_en,
-            parent_name_de: parentData.parent_name_de,
-            parent_name_cn: parentData.name_cn,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        const res = await axios.post(`${BASE_URL}/products/add`, {
+          products: chunk,
+          parent_name: parentData.parent_name_en,
+          parent_name_de: parentData.parent_name_de,
+          parent_name_cn: parentData.name_cn,
+        });
 
         if (res.status !== 200) {
           throw new Error(res.data.message || "Failed to upload chunk");
         }
 
-        setPostedCount(end > products.length ? products.length : end);
+        setPostedCount(Math.min(end, products.length));
         toast.update(
-          `Uploading products (${
-            end > products.length ? products.length : end
-          }/${products.length})...`
+          `Uploading products (${Math.min(end, products.length)}/${
+            products.length
+          })...`
         );
       }
 
-      // Final success handling
+      // CSV export
+      const csvContent =
+        "data:text/csv;charset=utf-8," +
+        [
+          [
+            "Item Name",
+            "Attribute 1",
+            "Attribute 2",
+            "Attribute 3",
+            "Price (RMB)",
+            "EAN",
+            "Supp Cat",
+            "Length",
+            "Width",
+            "Height",
+            "Weight",
+            "Tariff Code",
+            "Taric ID",
+          ].join(","),
+          ...products.map((p) =>
+            [
+              p.titemData.item_name,
+              p.variationValuesData.value_de,
+              p.variationValuesData.value_de_2,
+              p.variationValuesData.value_de_3,
+              p.supplierItemData.price_rmb,
+              p.titemData.ean,
+              p.titemData.supp_cat,
+              p.titemData.length,
+              p.titemData.width,
+              p.titemData.height,
+              p.titemData.weight,
+              p.titemData.tariff_code,
+              p.titemData.taric_id,
+            ].join(",")
+          ),
+        ].join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "uploaded_products.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      // Reset states
       toast.dismiss();
       setIsPosting(false);
       setShowMData(false);

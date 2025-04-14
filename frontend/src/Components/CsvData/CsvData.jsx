@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Papa from "papaparse";
 import {
   FaBan,
@@ -45,11 +45,23 @@ const CsvData = ({
   setCsvData,
   setOrgCsvData,
   orgCsvData,
+  initialModifications,
+  onModificationsChange,
 }) => {
   const [modifications, setModifications] = useState({});
   const [headers, setHeaders] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalData, setModalData] = useState({});
+
+  // Initialize modifications from props
+  useEffect(() => {
+    if (initialModifications) {
+      setModifications(initialModifications);
+      if (orgCsvData.length > 0) {
+        setCsvData(applyModifications(orgCsvData, initialModifications));
+      }
+    }
+  }, [initialModifications]);
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -105,34 +117,25 @@ const CsvData = ({
               length: row["length"] || 0,
             }));
 
-            const initialModifications = combinedHeaders.reduce(
-              (acc, header) => {
-                acc[header] = {
-                  prefix: "",
-                  suffix: "",
-                  find: "",
-                  replace: "",
-                  remove: "",
-                  formula: "",
-                };
-                return acc;
-              },
-              {}
-            );
+            const initialMods = combinedHeaders.reduce((acc, header) => {
+              acc[header] = {
+                prefix: "",
+                suffix: "",
+                find: "",
+                replace: "",
+                remove: "",
+                formula: "",
+              };
+              return acc;
+            }, {});
 
             setHeaders(combinedHeaders);
             setCsvData(transformedData);
-            setModifications(initialModifications);
-          } else {
-            console.warn("No valid headers found in CSV.");
+            setModifications(initialMods);
+            if (onModificationsChange) onModificationsChange(initialMods);
           }
         },
-        error: (error) => {
-          console.error("Error parsing CSV:", error);
-        },
       });
-    } else {
-      console.warn("No file selected.");
     }
   };
 
@@ -146,7 +149,6 @@ const CsvData = ({
   };
 
   const handleDuplicateColumn = (sourceHeader) => {
-    // Only allow duplication between Attributes columns
     const attributeHeaders = ["Attributes1", "Attributes2", "Attributes3"];
     const targetAttributeHeaders = attributeHeaders.filter(
       (h) => h !== sourceHeader
@@ -163,7 +165,6 @@ const CsvData = ({
 
   const handleModalSubmit = (header, type, value) => {
     if (type === "duplicate") {
-      // Handle column duplication
       const targetHeader = value;
       if (targetHeader && targetHeader !== header) {
         const updatedData = csvData.map((row) => ({
@@ -178,45 +179,32 @@ const CsvData = ({
     const updatedModifications = {
       ...modifications,
       [header]: {
-        prefix: "",
-        suffix: "",
-        find: "",
-        replace: "",
-        remove: "",
-        formula: "",
-        [type]: value,
+        ...modifications[header],
+        [type]: type === "findReplace" ? value.split("||")[0] : value,
+        ...(type === "findReplace" && {
+          replace: value.split("||")[1] || "",
+        }),
       },
     };
 
-    if (type === "findReplace") {
-      const [find, replace] = value.split("||");
-      updatedModifications[header].findReplace = { find, replace };
-    }
-
-    if (type === "formula") {
-      updatedModifications[header].formula = value;
-    }
-
     setModifications(updatedModifications);
-    setCsvData((prevData) =>
-      applyModifications(prevData, updatedModifications)
-    );
-    setModifications([]);
+    setCsvData(applyModifications(orgCsvData, updatedModifications));
+    if (onModificationsChange) onModificationsChange(updatedModifications);
   };
 
-  const applyModifications = (data, modifications) => {
+  const applyModifications = (data, mods) => {
     return data.map((row) => {
       const newRow = { ...row };
-
-      Object.keys(modifications).forEach((header) => {
-        if (modifications[header]) {
+      Object.keys(mods).forEach((header) => {
+        if (mods[header]) {
           let {
             prefix = "",
             suffix = "",
-            findReplace,
+            find = "",
+            replace = "",
             remove = "",
             formula = "",
-          } = modifications[header];
+          } = mods[header];
 
           let cellValue = newRow[header] ? String(newRow[header]) : "";
 
@@ -224,8 +212,7 @@ const CsvData = ({
             cellValue = cellValue.replace(new RegExp(remove, "g"), "");
           }
 
-          if (findReplace) {
-            const { find, replace } = findReplace;
+          if (find && replace) {
             cellValue = cellValue.replace(new RegExp(find, "g"), replace);
           }
 
@@ -240,18 +227,12 @@ const CsvData = ({
             }
           }
 
-          if (prefix) {
-            cellValue = prefix + cellValue;
-          }
-
-          if (suffix) {
-            cellValue = cellValue + suffix;
-          }
+          if (prefix) cellValue = prefix + cellValue;
+          if (suffix) cellValue = cellValue + suffix;
 
           newRow[header] = cellValue;
         }
       });
-
       return newRow;
     });
   };
@@ -271,12 +252,9 @@ const CsvData = ({
 
       const updatedCsvData = csvData.map((row) => {
         const updatedRow = {};
-
         newHeaders.forEach((header, index) => {
-          const originalHeader = relevantHeaders[index];
-          updatedRow[header] = row[originalHeader];
+          updatedRow[header] = row[relevantHeaders[index]];
         });
-
         return updatedRow;
       });
 
@@ -524,7 +502,7 @@ const CsvData = ({
                   document.querySelector("#csv-input").click();
                 }}
               >
-                <FaUpload fontSize={25} /> <h3>Upload CSV File</h3>
+                <FaUpload f ontSize={25} /> <h3>Upload CSV File</h3>
               </div>
               <input
                 id="csv-input"

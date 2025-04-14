@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { PlusCircle, X, Save, ArrowLeft, Loader2 } from "lucide-react";
+import {
+  PlusCircle,
+  X,
+  Save,
+  ArrowLeft,
+  Loader2,
+  Settings,
+} from "lucide-react";
 import {
   createClassification,
   getSingleClassification,
@@ -17,6 +24,8 @@ const CreateClassification = () => {
     description: "",
     subClasses: [],
   });
+  const [showModModal, setShowModModal] = useState(false);
+  const [currentSubClassIndex, setCurrentSubClassIndex] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -34,6 +43,11 @@ const CreateClassification = () => {
           subClasses: result.data.subClasses.map((sc) => ({
             ...sc,
             numberOfAttributes: sc.numberOfAttributes || 0,
+            attributeModifications: sc.attributeModifications
+              ? typeof sc.attributeModifications === "string"
+                ? JSON.parse(sc.attributeModifications)
+                : sc.attributeModifications
+              : null,
           })),
         });
       } else {
@@ -65,12 +79,29 @@ const CreateClassification = () => {
     });
   };
 
+  const handleModificationsChange = (index, modifications) => {
+    const updatedSubClasses = [...classification.subClasses];
+    updatedSubClasses[index] = {
+      ...updatedSubClasses[index],
+      attributeModifications: modifications,
+    };
+    setClassification({
+      ...classification,
+      subClasses: updatedSubClasses,
+    });
+  };
+
   const addSubClass = () => {
     setClassification({
       ...classification,
       subClasses: [
         ...classification.subClasses,
-        { name: "", description: "", numberOfAttributes: 0 },
+        {
+          name: "",
+          description: "",
+          numberOfAttributes: 0,
+          attributeModifications: null,
+        },
       ],
     });
   };
@@ -83,6 +114,11 @@ const CreateClassification = () => {
       ...classification,
       subClasses: updatedSubClasses,
     });
+  };
+
+  const openModificationsModal = (index) => {
+    setCurrentSubClassIndex(index);
+    setShowModModal(true);
   };
 
   const handleSubmit = async (e) => {
@@ -202,13 +238,23 @@ const CreateClassification = () => {
                     <h3 className="text-sm font-medium text-gray-700">
                       Sub-Class {index + 1}
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() => removeSubClass(index)}
-                      className="p-1 hover:bg-red-50 rounded-full text-red-500 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => openModificationsModal(index)}
+                        className="p-1 hover:bg-blue-50 rounded-full text-blue-500 transition-colors"
+                        title="Attribute Modifications"
+                      >
+                        <Settings className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeSubClass(index)}
+                        className="p-1 hover:bg-red-50 rounded-full text-red-500 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4">
                     <input
@@ -285,6 +331,236 @@ const CreateClassification = () => {
           </div>
         </form>
       </div>
+
+      {/* Modifications Modal */}
+      {showModModal && currentSubClassIndex !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white  p-6 w-full max-h-[90vh]  overflow-y-scroll max-w-4xl rounded-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Attribute Modifications for{" "}
+                {classification.subClasses[currentSubClassIndex]?.name ||
+                  `Sub-Class ${currentSubClassIndex + 1}`}
+              </h3>
+              <button
+                onClick={() => setShowModModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {["Attributes1", "Attributes2", "Attributes3"].map((attr) => (
+                  <div key={attr} className="border p-4 rounded-lg">
+                    <h4 className="font-medium mb-3">{attr}</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Prefix
+                        </label>
+                        <input
+                          type="text"
+                          value={
+                            classification.subClasses[currentSubClassIndex]
+                              ?.attributeModifications?.[attr]?.prefix || ""
+                          }
+                          onChange={(e) => {
+                            const mods = {
+                              ...(classification.subClasses[
+                                currentSubClassIndex
+                              ]?.attributeModifications || {}),
+                              [attr]: {
+                                ...(classification.subClasses[
+                                  currentSubClassIndex
+                                ]?.attributeModifications?.[attr] || {}),
+                                prefix: e.target.value,
+                              },
+                            };
+                            handleModificationsChange(
+                              currentSubClassIndex,
+                              mods
+                            );
+                          }}
+                          className="w-full px-3 py-2 border rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Suffix
+                        </label>
+                        <input
+                          type="text"
+                          value={
+                            classification.subClasses[currentSubClassIndex]
+                              ?.attributeModifications?.[attr]?.suffix || ""
+                          }
+                          onChange={(e) => {
+                            const mods = {
+                              ...(classification.subClasses[
+                                currentSubClassIndex
+                              ]?.attributeModifications || {}),
+                              [attr]: {
+                                ...(classification.subClasses[
+                                  currentSubClassIndex
+                                ]?.attributeModifications?.[attr] || {}),
+                                suffix: e.target.value,
+                              },
+                            };
+                            handleModificationsChange(
+                              currentSubClassIndex,
+                              mods
+                            );
+                          }}
+                          className="w-full px-3 py-2 border rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Remove Text
+                        </label>
+                        <input
+                          type="text"
+                          value={
+                            classification.subClasses[currentSubClassIndex]
+                              ?.attributeModifications?.[attr]?.remove || ""
+                          }
+                          onChange={(e) => {
+                            const mods = {
+                              ...(classification.subClasses[
+                                currentSubClassIndex
+                              ]?.attributeModifications || {}),
+                              [attr]: {
+                                ...(classification.subClasses[
+                                  currentSubClassIndex
+                                ]?.attributeModifications?.[attr] || {}),
+                                remove: e.target.value,
+                              },
+                            };
+                            handleModificationsChange(
+                              currentSubClassIndex,
+                              mods
+                            );
+                          }}
+                          className="w-full px-3 py-2 border rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Find & Replace
+                        </label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Find"
+                            value={
+                              classification.subClasses[currentSubClassIndex]
+                                ?.attributeModifications?.[attr]?.find || ""
+                            }
+                            onChange={(e) => {
+                              const mods = {
+                                ...(classification.subClasses[
+                                  currentSubClassIndex
+                                ]?.attributeModifications || {}),
+                                [attr]: {
+                                  ...(classification.subClasses[
+                                    currentSubClassIndex
+                                  ]?.attributeModifications?.[attr] || {}),
+                                  find: e.target.value,
+                                },
+                              };
+                              handleModificationsChange(
+                                currentSubClassIndex,
+                                mods
+                              );
+                            }}
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Replace"
+                            value={
+                              classification.subClasses[currentSubClassIndex]
+                                ?.attributeModifications?.[attr]?.replace || ""
+                            }
+                            onChange={(e) => {
+                              const mods = {
+                                ...(classification.subClasses[
+                                  currentSubClassIndex
+                                ]?.attributeModifications || {}),
+                                [attr]: {
+                                  ...(classification.subClasses[
+                                    currentSubClassIndex
+                                  ]?.attributeModifications?.[attr] || {}),
+                                  replace: e.target.value,
+                                },
+                              };
+                              handleModificationsChange(
+                                currentSubClassIndex,
+                                mods
+                              );
+                            }}
+                            className="w-full px-3 py-2 border rounded"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          Formula (use 'x' for value)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., x*2"
+                          value={
+                            classification.subClasses[currentSubClassIndex]
+                              ?.attributeModifications?.[attr]?.formula || ""
+                          }
+                          onChange={(e) => {
+                            const mods = {
+                              ...(classification.subClasses[
+                                currentSubClassIndex
+                              ]?.attributeModifications || {}),
+                              [attr]: {
+                                ...(classification.subClasses[
+                                  currentSubClassIndex
+                                ]?.attributeModifications?.[attr] || {}),
+                                formula: e.target.value,
+                              },
+                            };
+                            handleModificationsChange(
+                              currentSubClassIndex,
+                              mods
+                            );
+                          }}
+                          className="w-full px-3 py-2 border rounded"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6 space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowModModal(false)}
+                className="px-4 py-2 border rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowModModal(false)}
+                className="px-4 py-2 bg-primary text-white rounded-md"
+              >
+                Save Modifications
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
