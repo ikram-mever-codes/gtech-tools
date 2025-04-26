@@ -73,3 +73,30 @@ ul {
 .Toastify__progress-bar {
   background: #ffffff66;
 }
+
+.autocompelte-box {
+  position: absolute;
+  width: 100%;
+  background-color: #525252;
+  color: black;
+  border-radius: 5px;
+  padding: 5px 20px;
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0px;
+  flex-direction: column;
+}
+
+.autocompelte-result {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  width: 100%;
+  color: white;
+  font-size: 18px;
+  padding: 5px 20px;
+  border-bottom: 1px solid darkgray;
+}

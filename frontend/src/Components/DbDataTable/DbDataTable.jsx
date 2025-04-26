@@ -8,7 +8,6 @@ const DbDataTable = ({ dbData, setDbData }) => {
     "value_de_2",
     "value_de_3",
   ]);
-
   const processedData = dbData.map((data) => {
     const newData = { ...data };
     headers.forEach((header) => {

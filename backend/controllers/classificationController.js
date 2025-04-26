@@ -6,7 +6,6 @@ import {
 } from "../models/classification.js";
 import Product from "../models/products.js";
 import ErrorHandler from "../utils/errorHandler.js";
-// controllers/classificationController.js
 
 // Updated createClassification controller
 export const createClassification = async (req, res, next) => {
@@ -30,7 +29,14 @@ export const createClassification = async (req, res, next) => {
               description: subClass.description,
               classificationId: classification.id,
               numberOfAttributes: subClass.numberOfAttributes || 0,
-              attributeModifications: subClass.attributeModifications || null, // Add this line
+              attributeModifications: subClass.attributeModifications || null,
+              dimensionOperations: subClass.dimensionOperations || {
+                weight: "",
+                height: "",
+                length: "",
+                width: "",
+              },
+              parent: subClass.parent || null,
             },
             { transaction: t }
           )
@@ -102,7 +108,14 @@ export const updateClassification = async (req, res, next) => {
                 description: subClass.description,
                 isActive: subClass.isActive,
                 numberOfAttributes: subClass.numberOfAttributes || 0,
-                attributeModifications: subClass.attributeModifications || null, // Add this line
+                attributeModifications: subClass.attributeModifications || null,
+                dimensionOperations: subClass.dimensionOperations || {
+                  weight: "",
+                  height: "",
+                  length: "",
+                  width: "",
+                },
+                parent: subClass.parent || null,
               },
               {
                 where: { id: subClass.id },
@@ -115,7 +128,14 @@ export const updateClassification = async (req, res, next) => {
                 ...subClass,
                 classificationId: id,
                 numberOfAttributes: subClass.numberOfAttributes || 0,
-                attributeModifications: subClass.attributeModifications || null, // Add this line
+                attributeModifications: subClass.attributeModifications || null,
+                dimensionOperations: subClass.dimensionOperations || {
+                  weight: "",
+                  height: "",
+                  length: "",
+                  width: "",
+                },
+                parent: subClass.parent || null,
               },
               { transaction: t }
             );
@@ -150,7 +170,6 @@ export const deleteClassification = async (req, res, next) => {
       return next(new ErrorHandler("Classification not found", 404));
     }
 
-    // This will automatically delete all subClasses due to CASCADE
     await classification.destroy();
 
     return res.status(200).json({
@@ -222,13 +241,11 @@ export const addProductsToSubClass = async (req, res, next) => {
 
   try {
     const result = await sequelize.transaction(async (t) => {
-      // Verify subClass exists
       const subClass = await SubClass.findByPk(subClassId, { transaction: t });
       if (!subClass) {
         return next(new ErrorHandler("SubClass not found", 404));
       }
 
-      // Verify all products exist
       const products = await Product.findAll({
         where: { id: productIds },
         transaction: t,
@@ -238,7 +255,6 @@ export const addProductsToSubClass = async (req, res, next) => {
         return next(new ErrorHandler("Some products were not found", 404));
       }
 
-      // Filter products based on the number of attributes
       const validProducts = products.filter((product) => {
         const combinations = product.combinations
           ? Array.isArray(product.combinations)
@@ -261,7 +277,6 @@ export const addProductsToSubClass = async (req, res, next) => {
         );
       }
 
-      // Create associations only for valid products
       const associations = validProducts.map((product) => ({
         productId: product.id,
         subClassId,
@@ -274,7 +289,6 @@ export const addProductsToSubClass = async (req, res, next) => {
         transaction: t,
       });
 
-      // Return updated subClass with products
       return await SubClass.findByPk(subClassId, {
         include: [
           {
@@ -361,12 +375,10 @@ export const saveAttributeModifications = async (req, res, next) => {
       return next(new ErrorHandler("SubClass not found", 404));
     }
 
-    // Validate modifications structure
     if (modifications && typeof modifications !== "object") {
       return next(new ErrorHandler("Modifications must be an object", 400));
     }
 
-    // Update the subclass with new modifications
     subClass.attributeModifications = modifications;
     await subClass.save();
 
@@ -407,7 +419,69 @@ export const getAttributeModifications = async (req, res, next) => {
   }
 };
 
-// Update getSubClassDetails to include modifications
+// New controller for saving dimension operations
+export const saveDimensionOperations = async (req, res, next) => {
+  const { subClassId } = req.params;
+  const { operations } = req.body;
+
+  try {
+    const subClass = await SubClass.findByPk(subClassId);
+
+    if (!subClass) {
+      return next(new ErrorHandler("SubClass not found", 404));
+    }
+
+    if (operations && typeof operations !== "object") {
+      return next(new ErrorHandler("Operations must be an object", 400));
+    }
+
+    subClass.dimensionOperations = operations;
+    await subClass.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Dimension operations saved successfully",
+      data: {
+        subClassId: subClass.id,
+        operations: subClass.dimensionOperations,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// New controller for getting dimension operations
+export const getDimensionOperations = async (req, res, next) => {
+  const { subClassId } = req.params;
+
+  try {
+    const subClass = await SubClass.findByPk(subClassId, {
+      attributes: ["id", "dimensionOperations"],
+    });
+
+    if (!subClass) {
+      return next(new ErrorHandler("SubClass not found", 404));
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        subClassId: subClass.id,
+        operations: subClass.dimensionOperations || {
+          weight: "",
+          height: "",
+          length: "",
+          width: "",
+        },
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Update getSubClassDetails to include all fields
 export const getSubClassDetails = async (req, res, next) => {
   const { id } = req.params;
 
@@ -427,9 +501,6 @@ export const getSubClassDetails = async (req, res, next) => {
           },
         },
       ],
-      attributes: {
-        include: ["attributeModifications"],
-      },
     });
 
     if (!subClass) {

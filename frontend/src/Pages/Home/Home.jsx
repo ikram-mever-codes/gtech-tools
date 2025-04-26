@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from "react";
 import "./Home.css";
 import CsvData from "../../Components/CsvData/CsvData.jsx";
-import DbData from "../../Components/DbData/DbData.jsx";
+import DbData, { handleDataLoad } from "../../Components/DbData/DbData.jsx";
 import MData from "../../Components/mData/mData";
-import { FaExchangeAlt, FaSave } from "react-icons/fa";
+import { FaExchangeAlt } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { getSingleProduct } from "../../apis/product.js";
 import {
   getProductsBySubClass,
   getSingleSubClass,
-  saveAttributeModifications,
 } from "../../apis/classifications";
+import Loading from "../../Components/Loading.jsx";
 
 const Home = () => {
   const [searchParams] = useSearchParams();
@@ -24,17 +24,17 @@ const Home = () => {
   const [commonData, setCommonData] = useState([]);
   const [showMData, setShowMData] = useState(false);
   const [parentData, setParentData] = useState([]);
+  const [parentLoaded, setParentLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [subClassModifications, setSubClassModifications] = useState(null);
-  const [hasModificationChanges, setHasModificationChanges] = useState(false);
+  const [subClassDimensionOps, setSubClassDimensionOps] = useState(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Modified applyModifications function
   const applyModifications = (value, modifications) => {
     if (!modifications || !value) return value;
 
     let modifiedValue = String(value);
 
-    // Apply remove
     if (modifications.remove) {
       modifiedValue = modifiedValue.replace(
         new RegExp(modifications.remove, "g"),
@@ -42,7 +42,6 @@ const Home = () => {
       );
     }
 
-    // Apply find/replace
     if (modifications.find && modifications.replace) {
       modifiedValue = modifiedValue.replace(
         new RegExp(modifications.find, "g"),
@@ -50,7 +49,6 @@ const Home = () => {
       );
     }
 
-    // Apply formula
     if (modifications.formula) {
       try {
         const numericValue = parseFloat(modifiedValue);
@@ -64,19 +62,39 @@ const Home = () => {
       }
     }
 
-    // Apply prefix/suffix
-    if (modifications.prefix) {
+    if (modifications.prefix)
       modifiedValue = modifications.prefix + modifiedValue;
-    }
-    if (modifications.suffix) {
+    if (modifications.suffix)
       modifiedValue = modifiedValue + modifications.suffix;
-    }
 
     return modifiedValue;
   };
 
-  // Transform product with modifications
-  const transformProductToCSV = (product, modifications) => {
+  const applyDimensionOperation = (value, operation, attributes = {}) => {
+    if (!operation) return value;
+    try {
+      const numericValue = parseFloat(value);
+      if (isNaN(numericValue)) return value;
+
+      let modifiedExpression = operation
+        .replace(/x/g, numericValue)
+        .replace(/attr1/g, attributes.attr1 || 0)
+        .replace(/attr2/g, attributes.attr2 || 0)
+        .replace(/attr3/g, attributes.attr3 || 0);
+
+      const result = eval(modifiedExpression);
+      return isNaN(result) ? value : result;
+    } catch (e) {
+      console.error("Error applying dimension operation:", e);
+      return value;
+    }
+  };
+
+  const transformProductToCSV = (
+    product,
+    modifications,
+    dimensionOperations
+  ) => {
     if (!product || !product.combinations) return [];
 
     try {
@@ -85,20 +103,39 @@ const Home = () => {
         : JSON.parse(product.combinations);
 
       return combinations.map((combination, index) => {
-        const base = {
+        const attributes = {
+          attr1: combination.attribute1,
+          attr2: combination.attribute2,
+          attr3: combination.attribute3,
+        };
+
+        // Get dimension values with fallback to product dimensions if not in combination
+        const getDimensionValue = (dimension) => {
+          return combination[dimension] !== undefined
+            ? combination[dimension]
+            : 0;
+        };
+
+        const applyDimOp = (dimension) => {
+          const dimensionValue = getDimensionValue(dimension);
+          if (!dimensionOperations?.[dimension]) return dimensionValue;
+          return applyDimensionOperation(
+            dimensionValue,
+            dimensionOperations[dimension],
+            attributes
+          );
+        };
+
+        return {
           No: (index + 1).toString(),
           URL: product.link || "",
           Title: product.title || "",
           price: combination.price?.toString() || "",
           ProductId: product._id || "",
-          weight: product.weight,
-          height: product.height,
-          length: product.length,
-          width: product.width,
-        };
-
-        // Apply modifications to each attribute
-        const attributes = {
+          weight: applyDimOp("weight"),
+          height: applyDimOp("height"),
+          length: applyDimOp("length"),
+          width: applyDimOp("width"),
           Attributes1: applyModifications(
             combination.attribute1,
             modifications?.Attributes1
@@ -120,8 +157,6 @@ const Home = () => {
             modifications?.Attributes5
           ),
         };
-
-        return { ...base, ...attributes };
       });
     } catch (error) {
       console.error("Error transforming product to CSV:", error);
@@ -129,8 +164,11 @@ const Home = () => {
     }
   };
 
-  // Transform products with modifications
-  const transformProductsToCSV = (products, modifications) => {
+  const transformProductsToCSV = (
+    products,
+    modifications,
+    dimensionOperations
+  ) => {
     if (!products || !Array.isArray(products)) return [];
 
     let allCombinations = [];
@@ -139,135 +177,174 @@ const Home = () => {
     products.forEach((product) => {
       const productCombinations = transformProductToCSV(
         product,
-        modifications
-      ).map((combination) => {
-        const currentIndex = combinationIndex;
-        combinationIndex += 1;
-        return {
-          ...combination,
-          No: String(currentIndex),
-        };
-      });
+        modifications,
+        dimensionOperations
+      ).map((combination) => ({
+        ...combination,
+        No: String(combinationIndex++),
+      }));
+      console.log(productCombinations);
       allCombinations = [...allCombinations, ...productCombinations];
     });
 
     return allCombinations;
   };
+
   const processData = (transformedData) => {
     if (transformedData.length > 0) {
       const dataHeaders = Object.keys(transformedData[0]);
       setHeaders(dataHeaders);
       setCsvData(transformedData);
       setOrgCsvData(transformedData);
-      return createInitialModifications(dataHeaders);
     }
   };
 
-  const createInitialModifications = (headers) => {
-    return headers.reduce((acc, header) => {
-      acc[header] = {
-        prefix: "",
-        suffix: "",
-        find: "",
-        replace: "",
-        remove: "",
-        formula: "",
-      };
-      return acc;
-    }, {});
+  const compareValues = () => {
+    let currentFilteredData = [...csvData];
+    let foundCommonData = [];
+
+    if (dbData) {
+      dbData.forEach((item) => {
+        const matches = [
+          (item2) => item2.Attributes1 === item.value_de,
+          (item2) => item2.Attributes2 === item.value_de_2,
+          (item2) => item2.Attributes3 === item.value_de_3,
+        ];
+
+        let matchIndex = currentFilteredData.findIndex((item2) =>
+          matches.every((fn) => fn(item2))
+        );
+
+        if (matchIndex !== -1) {
+          foundCommonData.push({
+            dbData: item,
+            csvData: currentFilteredData[matchIndex],
+          });
+          currentFilteredData.splice(matchIndex, 1);
+        }
+      });
+    }
+
+    setMissingCombinations(currentFilteredData);
+    setCommonData(foundCommonData);
   };
 
-  // Fetch data with modificationscreateInitialModifications
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const productId = searchParams.get("productId");
-        const subClassId = searchParams.get("subClassId");
+  const checkAttributesEquality = () => {
+    if (!csvData.length || !dbData?.length) return false;
+    const csvAttrs = [
+      csvData[0]?.Attributes1,
+      csvData[0]?.Attributes2,
+      csvData[0]?.Attributes3,
+    ].filter(Boolean).length;
+    const dbAttrs = [
+      dbData[0]?.value_de,
+      dbData[0]?.value_de_2,
+      dbData[0]?.value_de_3,
+    ].filter(Boolean).length;
+    return csvAttrs === dbAttrs;
+  };
 
-        if (subClassId) {
-          const subclassResponse = await getSingleSubClass(subClassId);
-          if (subclassResponse?.success) {
-            const modifications = JSON.parse(
-              subclassResponse.data.attributeModifications
-            );
-            console.log("Modifications", modifications);
+  const fetchData = async () => {
+    setIsLoading(true);
+    setDataLoaded(false);
 
-            setSubClassModifications(modifications);
+    try {
+      const productId = searchParams.get("productId");
+      const subClassId = searchParams.get("subClassId");
 
-            const response = await getProductsBySubClass(subClassId);
-            if (response?.data) {
-              const transformedData = transformProductsToCSV(
-                response.data,
-                modifications
-              );
-              if (transformedData.length > 0) {
-                processData(transformedData);
-                toast.success(
-                  `Loaded ${response.data.length} products from subclass`
-                );
-              }
-            }
-          }
-        } else if (productId) {
-          // Existing product loading logic
-          const response = await getSingleProduct(productId);
-          if (response.success) {
-            setProduct(response.data);
-            const transformedData = transformProductToCSV(response.data);
-            if (transformedData.length > 0) {
-              processData(transformedData);
-              toast.success("Product data loaded successfully");
-            }
-          }
+      if (subClassId) {
+        const subclassResponse = await getSingleSubClass(subClassId);
+        if (!subclassResponse?.success)
+          throw new Error("Failed to load subclass data");
+
+        let parentLoadPromise = Promise.resolve();
+        if (subclassResponse.data.parent) {
+          parentLoadPromise = handleDataLoad(
+            subclassResponse.data.parent,
+            setDbData,
+            setParentData
+          ).then(() => setParentLoaded(true));
         }
-      } catch (error) {
-        toast.error("Error fetching data: " + error.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
+        const modifications = subclassResponse.data.attributeModifications
+          ? JSON.parse(subclassResponse.data.attributeModifications)
+          : null;
+
+        const dimensionOperations = subclassResponse.data.dimensionOperations
+          ? JSON.parse(subclassResponse.data.dimensionOperations)
+          : null;
+
+        setSubClassModifications(modifications);
+        setSubClassDimensionOps(dimensionOperations);
+
+        const productsResponse = await getProductsBySubClass(subClassId);
+        if (!productsResponse?.data) throw new Error("Failed to load products");
+
+        const transformedData = transformProductsToCSV(
+          productsResponse.data,
+          modifications,
+          dimensionOperations
+        );
+
+        if (transformedData.length === 0)
+          throw new Error("No valid product combinations found");
+
+        await parentLoadPromise;
+        processData(transformedData);
+        toast.success(
+          `Loaded ${productsResponse.data.length} products from subclass`
+        );
+      } else if (productId) {
+        const response = await getSingleProduct(productId);
+        if (!response.success) throw new Error("Failed to load product");
+
+        setProduct(response.data);
+        const transformedData = transformProductToCSV(response.data);
+        if (transformedData.length === 0)
+          throw new Error("No valid product combinations found");
+
+        processData(transformedData);
+        toast.success("Product data loaded successfully");
+      }
+
+      setDataLoaded(true);
+    } catch (error) {
+      toast.error("Error fetching data: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [searchParams]);
 
-  // Save modifications handler
-  const handleSaveModifications = async () => {
-    const subClassId = searchParams.get("subClassId");
-    if (!subClassId) return;
-
-    try {
-      await saveAttributeModifications(subClassId, subClassModifications);
-      toast.success("Modifications saved successfully");
-      setHasModificationChanges(false);
-    } catch (error) {
-      toast.error("Failed to save modifications");
-    }
-  };
-
-  // Add this new button to the UI
-  const renderSaveButton = () => (
-    <button
-      className="save-modifications-btn"
-      onClick={handleSaveModifications}
-      disabled={!hasModificationChanges}
-    >
-      <FaSave /> Save Modifications
-    </button>
-  );
+  if (searchParams.get("subClassId") && (!dataLoaded || isLoading)) {
+    return <Loading />;
+  }
 
   return (
     <div className="home-container">
-      {/* Add save button at the top */}
-      {searchParams.get("subClassId") && renderSaveButton()}
-
-      {/* Existing comparison button */}
+      {showMData && (
+        <MData
+          setShowMData={setShowMData}
+          missingCombinations={missingCombinations}
+          setMissingCombinations={setMissingCombinations}
+          parentData={parentData}
+          parent={dbData}
+          subClassDimensionOps={subClassDimensionOps}
+          setParentData={setParentData}
+          setCsvData={setCsvData}
+          setDbData={setDbData}
+          commonData={commonData}
+          setCommonData={setCommonData}
+        />
+      )}
       <div className="attribute-selection">
         <button
           className={`mb-[2rem] ${
             isLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
-          disabled={isLoading}
           onClick={() => {
             if (csvData.length === 0 || dbData === null) {
               toast.error("Please Load Master Data and Csv Data!");
@@ -285,13 +362,15 @@ const Home = () => {
         </button>
       </div>
 
-      {/* Existing data containers */}
       <div className="home-box">
         <DbData
           setDbData={setDbData}
           dbData={dbData}
           parentData={parentData}
           setParentData={setParentData}
+          initialParent={
+            searchParams.get("subClassId") && parentLoaded ? parentData : null
+          }
         />
         <CsvData
           dbData={dbData}
@@ -304,10 +383,9 @@ const Home = () => {
           setOrgCsvData={setOrgCsvData}
           isLoading={isLoading}
           initialModifications={subClassModifications}
-          onModificationsChange={(mods) => {
-            setSubClassModifications(mods);
-            setHasModificationChanges(true);
-          }}
+          onModificationsChange={setSubClassModifications}
+          subClass={subClassModifications}
+          subClassId={searchParams.get("subClassId")}
         />
       </div>
     </div>

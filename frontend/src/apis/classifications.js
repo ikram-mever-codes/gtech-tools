@@ -130,3 +130,29 @@ export const getAttributeModifications = async (subClassId) => {
     handleApiError(error);
   }
 };
+
+// Dimension Operations
+export const saveDimensionOperations = async (subClassId, operations) => {
+  try {
+    const res = await api.put(
+      `/classifications/subclass/${subClassId}/dimension-operations`,
+      { operations }
+    );
+    const data = res.data;
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const getDimensionOperations = async (subClassId) => {
+  try {
+    const res = await api.get(
+      `/classifications/subclass/${subClassId}/dimension-operations`
+    );
+    const data = res.data;
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};

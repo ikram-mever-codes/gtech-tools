@@ -7,12 +7,36 @@ import {
   ArrowLeft,
   Loader2,
   Settings,
+  Ruler,
 } from "lucide-react";
 import {
   createClassification,
   getSingleClassification,
   updateClassification,
 } from "../../apis/classifications";
+import axios from "axios";
+import { BASE_URL } from "../../assets/constants";
+
+const AutoComplete = ({ results, setResults, setParent }) => {
+  return (
+    <div className="autocompelte-box">
+      {results.map((result) => {
+        return (
+          <div
+            className="autocompelte-result"
+            key={result.parent_id_de}
+            onClick={() => {
+              setResults([]);
+              setParent(result.parent_name_en);
+            }}
+          >
+            {result.parent_name_en}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const CreateClassification = () => {
   const [searchParams] = useSearchParams();
@@ -25,7 +49,10 @@ const CreateClassification = () => {
     subClasses: [],
   });
   const [showModModal, setShowModModal] = useState(false);
+  const [showDimModal, setShowDimModal] = useState(false);
   const [currentSubClassIndex, setCurrentSubClassIndex] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -48,6 +75,17 @@ const CreateClassification = () => {
                 ? JSON.parse(sc.attributeModifications)
                 : sc.attributeModifications
               : null,
+            dimensionOperations: sc.dimensionOperations
+              ? typeof sc.dimensionOperations === "string"
+                ? JSON.parse(sc.dimensionOperations)
+                : sc.dimensionOperations
+              : {
+                  weight: "",
+                  height: "",
+                  length: "",
+                  width: "",
+                },
+            parent: sc.parent || "",
           })),
         });
       } else {
@@ -57,6 +95,23 @@ const CreateClassification = () => {
       console.error("Error fetching classification:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const searchProducts = async (en_name) => {
+    try {
+      let res = await axios.get(
+        `${BASE_URL}/search?en_name=${encodeURIComponent(en_name)}`,
+        {
+          headers: {
+            "Content-Type": "application_json",
+          },
+          withCredentials: true,
+        }
+      );
+      setSearchResults(res.data);
+    } catch (error) {
+      console.log(error.message);
     }
   };
 
@@ -79,11 +134,42 @@ const CreateClassification = () => {
     });
   };
 
+  const handleParentSearch = async (index, value) => {
+    const updatedSubClasses = [...classification.subClasses];
+    updatedSubClasses[index] = {
+      ...updatedSubClasses[index],
+      parent: value,
+    };
+    setClassification({
+      ...classification,
+      subClasses: updatedSubClasses,
+    });
+
+    setSearchQuery(value);
+    if (value.length > 2) {
+      await searchProducts(value);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
   const handleModificationsChange = (index, modifications) => {
     const updatedSubClasses = [...classification.subClasses];
     updatedSubClasses[index] = {
       ...updatedSubClasses[index],
       attributeModifications: modifications,
+    };
+    setClassification({
+      ...classification,
+      subClasses: updatedSubClasses,
+    });
+  };
+
+  const handleDimensionOperationsChange = (index, operations) => {
+    const updatedSubClasses = [...classification.subClasses];
+    updatedSubClasses[index] = {
+      ...updatedSubClasses[index],
+      dimensionOperations: operations,
     };
     setClassification({
       ...classification,
@@ -101,6 +187,13 @@ const CreateClassification = () => {
           description: "",
           numberOfAttributes: 0,
           attributeModifications: null,
+          dimensionOperations: {
+            weight: "",
+            height: "",
+            length: "",
+            width: "",
+          },
+          parent: "",
         },
       ],
     });
@@ -121,15 +214,33 @@ const CreateClassification = () => {
     setShowModModal(true);
   };
 
+  const openDimensionsModal = (index) => {
+    setCurrentSubClassIndex(index);
+    setShowDimModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      const dataToSubmit = {
+        ...classification,
+        subClasses: classification.subClasses.map((sc) => ({
+          ...sc,
+          attributeModifications: sc.attributeModifications
+            ? sc.attributeModifications
+            : null,
+          dimensionOperations: sc.dimensionOperations
+            ? sc.dimensionOperations
+            : null,
+        })),
+      };
+
       if (id) {
-        await updateClassification(id, classification);
+        await updateClassification(id, dataToSubmit);
       } else {
-        await createClassification(classification);
+        await createClassification(dataToSubmit);
       }
       navigate("/classifications");
     } catch (error) {
@@ -249,6 +360,14 @@ const CreateClassification = () => {
                       </button>
                       <button
                         type="button"
+                        onClick={() => openDimensionsModal(index)}
+                        className="p-1 hover:bg-green-50 rounded-full text-green-500 transition-colors"
+                        title="Dimension Operations"
+                      >
+                        <Ruler className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => removeSubClass(index)}
                         className="p-1 hover:bg-red-50 rounded-full text-red-500 transition-colors"
                       >
@@ -256,49 +375,77 @@ const CreateClassification = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <input
-                      type="text"
-                      value={subClass.name}
-                      onChange={(e) =>
-                        handleSubClassChange(index, "name", e.target.value)
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="Sub-class name"
-                      required
-                    />
-                    <textarea
-                      value={subClass.description}
-                      onChange={(e) =>
-                        handleSubClassChange(
-                          index,
-                          "description",
-                          e.target.value
-                        )
-                      }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                      placeholder="Sub-class description"
-                      rows="2"
-                    />
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Number of Attributes
-                      </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <input
-                        type="number"
-                        min="0"
-                        value={subClass.numberOfAttributes}
+                        type="text"
+                        value={subClass.name}
+                        onChange={(e) =>
+                          handleSubClassChange(index, "name", e.target.value)
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                        placeholder="Sub-class name"
+                        required
+                      />
+                      <textarea
+                        value={subClass.description}
                         onChange={(e) =>
                           handleSubClassChange(
                             index,
-                            "numberOfAttributes",
+                            "description",
                             e.target.value
                           )
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                        placeholder="Enter required number of attributes"
-                        required
+                        placeholder="Sub-class description"
+                        rows="2"
                       />
+                      <div className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Parent
+                        </label>
+                        <input
+                          type="text"
+                          value={subClass.parent}
+                          onChange={(e) =>
+                            handleParentSearch(index, e.target.value)
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="Search for parent sub-class"
+                        />
+                        {searchResults.length > 0 && subClass.parent !== "" && (
+                          <AutoComplete
+                            results={searchResults}
+                            setParent={(value) => {
+                              handleSubClassChange(index, "parent", value);
+                              setSearchResults([]);
+                            }}
+                            setResults={setSearchResults}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Number of Attributes
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={subClass.numberOfAttributes}
+                          onChange={(e) =>
+                            handleSubClassChange(
+                              index,
+                              "numberOfAttributes",
+                              e.target.value
+                            )
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                          placeholder="Enter required number of attributes"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -332,10 +479,10 @@ const CreateClassification = () => {
         </form>
       </div>
 
-      {/* Modifications Modal */}
+      {/* Attribute Modifications Modal */}
       {showModModal && currentSubClassIndex !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white  p-6 w-full max-h-[90vh]  overflow-y-scroll max-w-4xl rounded-xl">
+          <div className="bg-white p-6 w-full max-h-[90vh] overflow-y-scroll max-w-4xl rounded-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
                 Attribute Modifications for{" "}
@@ -556,6 +703,86 @@ const CreateClassification = () => {
                 className="px-4 py-2 bg-primary text-white rounded-md"
               >
                 Save Modifications
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dimension Operations Modal */}
+      {showDimModal && currentSubClassIndex !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 w-full max-h-[90vh] overflow-y-scroll max-w-2xl rounded-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Dimension Operations for{" "}
+                {classification.subClasses[currentSubClassIndex]?.name ||
+                  `Sub-Class ${currentSubClassIndex + 1}`}
+              </h3>
+              <button
+                onClick={() => setShowDimModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {classification.subClasses[currentSubClassIndex]
+                ?.dimensionOperations &&
+                Object.entries(
+                  classification.subClasses[currentSubClassIndex]
+                    .dimensionOperations
+                ).map(([dimension, operation]) => (
+                  <div key={dimension} className="border p-4 rounded-lg">
+                    <h4 className="font-medium mb-3">
+                      {dimension.charAt(0).toUpperCase() + dimension.slice(1)}
+                    </h4>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Operation (use 'x' for current value, 'attr1', 'attr2',
+                        'attr3' for attributes)
+                      </label>
+                      <input
+                        type="text"
+                        value={operation}
+                        onChange={(e) => {
+                          const ops = {
+                            ...(classification.subClasses[currentSubClassIndex]
+                              ?.dimensionOperations || {}),
+                            [dimension]: e.target.value,
+                          };
+                          handleDimensionOperationsChange(
+                            currentSubClassIndex,
+                            ops
+                          );
+                        }}
+                        className="w-full px-3 py-2 border rounded"
+                        placeholder="e.g., x * 2, x + attr1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Example formulas: "x * 2", "x + 5", "x * attr1", "(x +
+                        attr2) / 2"
+                      </p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+
+            <div className="flex justify-end mt-6 space-x-3">
+              <button
+                type="button"
+                onClick={() => setShowDimModal(false)}
+                className="px-4 py-2 border rounded-md"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDimModal(false)}
+                className="px-4 py-2 bg-primary text-white rounded-md"
+              >
+                Save Operations
               </button>
             </div>
           </div>

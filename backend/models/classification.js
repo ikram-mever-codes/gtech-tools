@@ -93,6 +93,40 @@ const SubClass = sequelize.define(
         },
       },
     },
+    dimensionOperations: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: {
+        weight: "",
+        height: "",
+        length: "",
+        width: "",
+      },
+      validate: {
+        isValidDimensionOperations(value) {
+          if (value === null) return;
+
+          if (typeof value !== "object") {
+            throw new Error("Dimension operations must be an object");
+          }
+
+          const validDimensions = ["weight", "height", "length", "width"];
+          for (const [dimension, operation] of Object.entries(value)) {
+            if (!validDimensions.includes(dimension)) {
+              throw new Error(`Invalid dimension: ${dimension}`);
+            }
+
+            if (operation && typeof operation !== "string") {
+              throw new Error(`Operation for ${dimension} must be a string`);
+            }
+          }
+        },
+      },
+    },
+    parent: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     classificationId: {
       type: DataTypes.INTEGER,
       allowNull: false,
