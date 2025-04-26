@@ -19,10 +19,11 @@ const MData = ({
   setDbData,
   commonData,
   setCommonData,
+  subClassDimensionOps,
 }) => {
   const [tab, setTab] = useState("combinations");
   const [products, setProducts] = useState([]);
-  console.log(missingCombinations);
+
   return (
     <div className="mdata-container">
       <div className="mdata-modal">
@@ -100,6 +101,7 @@ const MData = ({
             <Operations
               parentData={parentData}
               products={products}
+              subClassDimensionOps={subClassDimensionOps}
               setProducts={setProducts}
               missingCombinations={missingCombinations}
             />

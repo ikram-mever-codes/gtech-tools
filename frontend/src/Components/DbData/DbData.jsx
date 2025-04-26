@@ -53,14 +53,15 @@ const AutoComplete = ({ results, setResults, set_parent_name }) => {
   );
 };
 
-const DbData = ({ dbData, setDbData, setParentData, setSupplierItem }) => {
+const DbData = ({
+  dbData,
+  setDbData,
+  setParentData,
+  setSupplierItem,
+  initialParent,
+}) => {
   const [results, setResults] = useState([]);
   const [parent_name, set_parent_name] = useState("");
-  useEffect(() => {
-    if (parent_name !== "") {
-      handleDataLoad(parent_name, setDbData, setParentData);
-    }
-  }, []);
 
   const searchProducts = async (en_name) => {
     try {
@@ -78,6 +79,18 @@ const DbData = ({ dbData, setDbData, setParentData, setSupplierItem }) => {
       console.log(error.message);
     }
   };
+  useEffect(() => {
+    if (parent_name !== "") {
+      handleDataLoad(parent_name, setDbData, setParentData);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialParent) {
+      setResults([]);
+      set_parent_name(initialParent.parent_name_en);
+    }
+  }, [initialParent]);
 
   return (
     <div className="db-data-container">

@@ -2,7 +2,15 @@ import React, { useState, useEffect } from "react";
 import "./Operations.css";
 import axios from "axios";
 import { BASE_URL } from "../../assets/constants";
-const Operations = ({ products, setProducts, missingCombinations }) => {
+import { toast } from "react-toastify";
+
+const Operations = ({
+  products,
+  setProducts,
+  missingCombinations,
+  parentData,
+  subClassDimensionOps,
+}) => {
   const [expressions, setExpressions] = useState({
     weight: "",
     height: "",
@@ -12,7 +20,13 @@ const Operations = ({ products, setProducts, missingCombinations }) => {
   const [constants, setConstants] = useState([]);
   const [filteredConstants, setFilteredConstants] = useState([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [subClassOperations, setSubClassOperations] = useState(null);
+
   useEffect(() => {
+    if (subClassDimensionOps) {
+      setExpressions(subClassDimensionOps);
+      handleApply();
+    }
     const fetchConstants = async () => {
       try {
         const response = await axios.get(`${BASE_URL}/api/constants/all`);
@@ -21,18 +35,37 @@ const Operations = ({ products, setProducts, missingCombinations }) => {
         console.error("Error fetching constants:", error);
       }
     };
-
     fetchConstants();
-  }, []);
+  }, [subClassDimensionOps]);
+
+  useEffect(() => {
+    if (parentData?.subClassId) {
+      const fetchSubClassOperations = async () => {
+        try {
+          const response = await axios.get(
+            `${BASE_URL}/api/subclasses/${parentData.subClassId}`
+          );
+          if (response.data.dimensionOperations) {
+            const ops =
+              typeof response.data.dimensionOperations === "string"
+                ? JSON.parse(response.data.dimensionOperations)
+                : response.data.dimensionOperations;
+
+            setSubClassOperations(ops);
+            setExpressions(ops);
+          }
+        } catch (error) {
+          console.error("Error fetching subclass operations:", error);
+        }
+      };
+      fetchSubClassOperations();
+    }
+  }, [parentData]);
 
   const handleExpressionChange = (e, key) => {
     const { value } = e.target;
-    setExpressions((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setExpressions((prev) => ({ ...prev, [key]: value }));
 
-    // Filter constants based on the current input value
     const filtered = constants.filter((constant) =>
       constant.name.toLowerCase().includes(value.toLowerCase())
     );
@@ -49,35 +82,30 @@ const Operations = ({ products, setProducts, missingCombinations }) => {
       setActiveIndex((prev) => Math.max(prev - 1, 0));
     } else if (e.key === "Enter" && activeIndex >= 0) {
       const selectedConstant = filteredConstants[activeIndex];
-      setExpressions((prev) => ({
-        ...prev,
-        [key]: selectedConstant.value,
-      }));
+      setExpressions((prev) => ({ ...prev, [key]: selectedConstant.value }));
       setFilteredConstants([]);
       setActiveIndex(-1);
     }
   };
 
   const applyOperation = (expression, key, product) => {
+    if (!expression) return product.titemData[key];
+
     try {
       let currentValue = parseFloat(product.titemData[key]);
       if (isNaN(currentValue)) return currentValue;
 
-      let modifiedExpression = expression.replace(/x/g, currentValue);
+      let modifiedExpression = expression
+        .replace(/x/g, currentValue)
+        .replace(/attr1/g, product.variationValuesData.value_de || 0)
+        .replace(/attr2/g, product.variationValuesData.value_de_2 || 0)
+        .replace(/attr3/g, product.variationValuesData.value_de_3 || 0);
 
-      const attr1 = product.variationValuesData.value_de;
-      const attr2 = product.variationValuesData.value_de_2;
-      const attr3 = product.variationValuesData.value_de_3;
-
-      // Replace attribute placeholders (attr1, attr2, attr3) with actual values
-      modifiedExpression = modifiedExpression.replace(/attr1/g, attr1);
-      modifiedExpression = modifiedExpression.replace(/attr2/g, attr2);
-      modifiedExpression = modifiedExpression.replace(/attr3/g, attr3);
-
-      // Loop through constants and replace their names in the expression
       constants.forEach((constant) => {
-        const regex = new RegExp(`\\b${constant.name}\\b`, "g");
-        modifiedExpression = modifiedExpression.replace(regex, constant.value);
+        modifiedExpression = modifiedExpression.replace(
+          new RegExp(`\\b${constant.name}\\b`, "g"),
+          constant.value
+        );
       });
 
       const result = eval(modifiedExpression);
@@ -100,37 +128,69 @@ const Operations = ({ products, setProducts, missingCombinations }) => {
       },
     }));
     setProducts(updatedProducts);
+    toast.success("Dimension operations applied successfully");
+  };
+
+  const saveOperationsToSubClass = async () => {
+    if (!parentData?.subClassId) {
+      toast.error("No subclass selected to save operations");
+      return;
+    }
+
+    try {
+      await axios.put(`${BASE_URL}/api/subclasses/${parentData.subClassId}`, {
+        dimensionOperations: expressions,
+      });
+      toast.success("Dimension operations saved to subclass");
+    } catch (error) {
+      console.error("Error saving operations:", error);
+      toast.error("Failed to save operations");
+    }
   };
 
   const renderExpressionWithConstants = (expression) => {
-    const parts = expression.split(/(\s+)/); // Split by whitespace
-
-    return parts.map((part, index) => {
+    if (!expression) return null;
+    return expression.split(/(\s+)/).map((part, index) => {
       const constant = constants.find(
         (c) => c.name.toLowerCase() === part.trim().toLowerCase()
       );
-      if (constant) {
-        return (
-          <span key={index} style={{ color: "blue", fontWeight: "bold" }}>
-            {part}
-          </span>
-        );
-      }
-      return part; // Return as is if not a constant
+      return constant ? (
+        <span key={index} style={{ color: "blue", fontWeight: "bold" }}>
+          {part}
+        </span>
+      ) : (
+        part
+      );
     });
   };
-  console.log(products);
 
   return (
     <div className="operations-container">
       <h2 className="header-title">Dimension Modifications</h2>
+
+      {subClassOperations && (
+        <div className="subclass-operations-notice">
+          <p>Using operations from subclass: {parentData.subClassId}</p>
+          <div className="operations-preview">
+            {Object.entries(subClassOperations).map(
+              ([dim, op]) =>
+                op && (
+                  <div key={dim}>
+                    <strong>{dim}:</strong> {op}
+                  </div>
+                )
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="dimension-inputs">
         {["weight", "height", "length", "width"].map((dim) => (
           <div className="dimension-item" key={dim}>
-            <label>{dim.charAt(0).toUpperCase() + dim.slice(1)} :</label>
+            <label>{dim.charAt(0).toUpperCase() + dim.slice(1)}:</label>
             <input
               type="text"
-              placeholder={`Enter expression (e.g., x * 2, x + attr1)`}
+              placeholder={`e.g., x * 2, x + attr1`}
               value={expressions[dim]}
               onChange={(e) => handleExpressionChange(e, dim)}
               onKeyDown={(e) => handleKeyDown(e, dim)}
@@ -152,10 +212,9 @@ const Operations = ({ products, setProducts, missingCombinations }) => {
                         [dim]: constant.value,
                       }));
                       setFilteredConstants([]);
-                      setActiveIndex(-1);
                     }}
                   >
-                    {constant.value}
+                    {constant.name} ({constant.value})
                   </li>
                 ))}
               </ul>
@@ -164,9 +223,16 @@ const Operations = ({ products, setProducts, missingCombinations }) => {
         ))}
       </div>
 
-      <button className="apply-btn" onClick={handleApply}>
-        Apply Changes
-      </button>
+      <div className="operations-buttons">
+        <button className="apply-btn" onClick={handleApply}>
+          Apply Changes
+        </button>
+        {parentData?.subClassId && (
+          <button className="save-btn" onClick={saveOperationsToSubClass}>
+            Save to SubClass
+          </button>
+        )}
+      </div>
 
       <table className="products-table">
         <thead>
